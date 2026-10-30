@@ -418,8 +418,11 @@ export default function SchedulePage() {
 
 
             {reportLoaded && (
+
                 <PreferredScheduleBuilder
+                    catalogSections={DEMO_SECTIONS}
                     recommendations={recommendations}
+                    history={courses}
                     onUseSchedule={(sections) => {
                         setSelectedIds(
                             sections.map((section) => section.id)
@@ -427,6 +430,7 @@ export default function SchedulePage() {
                         setWarning(null);
                     }}
                 />
+
             )}
 
 

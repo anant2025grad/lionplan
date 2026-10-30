@@ -2,11 +2,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
+
 import {
   AlertTriangle,
   CheckCircle2,
   WandSparkles,
 } from "lucide-react";
+
+import type {
+  StudentCourse,
+} from "@/types/academic";
 
 import type {
   CourseSection,
@@ -31,14 +36,18 @@ import {
 } from "@/components/scheduling/scheduling-preferences-panel";
 
 interface Props {
+  catalogSections: CourseSection[];
   recommendations: CourseRecommendation[];
+  history: StudentCourse[];
   onUseSchedule: (
     sections: CourseSection[]
   ) => void;
 }
 
 export function PreferredScheduleBuilder({
+  catalogSections,
   recommendations,
+  history,
   onUseSchedule,
 }: Props) {
   const [preferences, setPreferences] =
@@ -53,19 +62,17 @@ export function PreferredScheduleBuilder({
       null
     );
 
-  const candidateSections = useMemo(() => {
-    const byId = new Map<
-      string,
-      CourseSection
-    >();
-
-    for (const recommendation of recommendations) {
-      for (const section of recommendation.sections) {
-        byId.set(section.id, section);
-      }
-    }
-
-    return [...byId.values()];
+  const recommendedSectionIds = useMemo(() => {
+    return [
+      ...new Set(
+        recommendations.flatMap(
+          (recommendation) =>
+            recommendation.sections.map(
+              (section) => section.id
+            )
+        )
+      ),
+    ];
   }, [recommendations]);
 
   function changePreferences(
@@ -78,8 +85,12 @@ export function PreferredScheduleBuilder({
   function generate() {
     setResult(
       generatePreferredSchedules(
-        candidateSections,
-        preferences
+        catalogSections,
+        preferences,
+        {
+          recommendedSectionIds,
+          history,
+        }
       )
     );
   }
@@ -89,7 +100,7 @@ export function PreferredScheduleBuilder({
       <SchedulingPreferencesPanel
         value={preferences}
         onChange={changePreferences}
-        availableSections={candidateSections}
+        availableSections={catalogSections}
       />
 
       <section className="border border-border bg-surface p-5">
@@ -100,15 +111,15 @@ export function PreferredScheduleBuilder({
             </h2>
 
             <p className="mt-2 text-xs text-muted">
-              Generate conflict-free combinations
-              from the recommended demo sections.
+              Build schedules around locked classes
+              using degree-based recommendations.
             </p>
           </div>
 
           <button
             type="button"
             onClick={generate}
-            disabled={candidateSections.length === 0}
+            disabled={catalogSections.length === 0}
             className="inline-flex items-center gap-2 bg-psu-blue px-5 py-3 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
             <WandSparkles size={15} />
@@ -116,8 +127,25 @@ export function PreferredScheduleBuilder({
           </button>
         </div>
 
+        <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted">
+          <span className="border border-border px-3 py-2">
+            {catalogSections.length} catalog sections
+          </span>
+
+          <span className="border border-border px-3 py-2">
+            {recommendedSectionIds.length} recommended sections
+          </span>
+
+          <span className="border border-border px-3 py-2">
+            {preferences.lockedSectionIds.length} locked
+          </span>
+        </div>
+
         {result && (
-          <div className="mt-5 space-y-4">
+          <div
+            aria-live="polite"
+            className="mt-5 space-y-4"
+          >
             {result.errors.map((error) => (
               <div
                 key={error}
@@ -128,24 +156,30 @@ export function PreferredScheduleBuilder({
                   size={16}
                   className="shrink-0 text-muted"
                 />
-                {error}
+                <span>{error}</span>
               </div>
             ))}
 
             {result.warnings.map((warning) => (
-              <p
+              <div
                 key={warning}
-                className="text-xs text-muted"
+                className="flex gap-2 text-xs leading-5 text-muted"
               >
-                {warning}
-              </p>
+                <AlertTriangle
+                  size={14}
+                  className="mt-0.5 shrink-0"
+                />
+                <span>{warning}</span>
+              </div>
             ))}
 
             {result.schedules.length === 0 &&
               result.errors.length === 0 && (
                 <p className="text-sm text-muted">
                   No compatible schedules were found.
-                  Try relaxing your preferences.
+                  Try relaxing your preferences,
+                  changing locked sections, or
+                  selecting more recommended courses.
                 </p>
               )}
 
@@ -168,6 +202,12 @@ export function PreferredScheduleBuilder({
                         {" · "}
                         {schedule.sections.length} classes
                       </p>
+
+                      <p className="mt-1 text-xs text-muted">
+                        {schedule.differenceFromTarget === 0
+                          ? "Matches target credits"
+                          : `${schedule.differenceFromTarget} credits from target`}
+                      </p>
                     </div>
 
                     <button
@@ -186,15 +226,28 @@ export function PreferredScheduleBuilder({
 
                   <div className="mt-4 flex flex-wrap gap-2">
                     {schedule.sections.map(
-                      (section) => (
-                        <span
-                          key={section.id}
-                          className="border border-border bg-surface-muted px-3 py-2 text-xs"
-                        >
-                          {section.courseCode} ·{" "}
-                          {section.section}
-                        </span>
-                      )
+                      (section) => {
+                        const locked =
+                          preferences.lockedSectionIds.includes(
+                            section.id
+                          );
+
+                        return (
+                          <span
+                            key={section.id}
+                            className="inline-flex items-center gap-2 border border-border bg-surface-muted px-3 py-2 text-xs"
+                          >
+                            {section.courseCode} ·{" "}
+                            {section.section}
+
+                            {locked && (
+                              <span className="text-blue-accent">
+                                Locked
+                              </span>
+                            )}
+                          </span>
+                        );
+                      }
                     )}
                   </div>
                 </article>
@@ -204,10 +257,10 @@ export function PreferredScheduleBuilder({
         )}
 
         <p className="mt-5 text-xs leading-5 text-muted">
-          Generated schedules are illustrative.
-          Course availability, prerequisites,
-          degree applicability and enrollment
-          eligibility must be verified.
+          Demo sections and course eligibility are
+          not official enrollment data. Unverified
+          prerequisites require manual review.
+          Confirm all selections in LionPATH.
         </p>
       </section>
     </div>

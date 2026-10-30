@@ -1,7 +1,6 @@
 
-import type {
-  CourseSection,
-} from "@/types/schedule";
+import type { StudentCourse } from "@/types/academic";
+import type { CourseSection } from "@/types/schedule";
 
 import type {
   SchedulingPreferences,
@@ -10,6 +9,10 @@ import type {
 import {
   findScheduleConflicts,
 } from "@/lib/scheduling/schedule-engine";
+
+import {
+  evaluatePrerequisites,
+} from "@/lib/academic/evaluate-prerequisites";
 
 export interface PreferredSchedule {
   id: string;
@@ -27,6 +30,18 @@ export interface PreferredScheduleResult {
 export interface PreferredGenerationOptions {
   maxResults?: number;
   maxCombinations?: number;
+
+  // Omit to preserve Session 12 behavior:
+  // all unlocked catalog sections are candidates.
+  // Pass [] to allow locked sections only.
+  recommendedSectionIds?: string[];
+
+  // Academic history used for prerequisite checks.
+  history?: StudentCourse[];
+}
+
+function normalizeCode(code: string): string {
+  return code.trim().toUpperCase().replace(/\s+/g, " ");
 }
 
 function fitsPreferences(
@@ -34,6 +49,14 @@ function fitsPreferences(
   preferences: SchedulingPreferences
 ): boolean {
   return section.meetings.every((meeting) => {
+    if (
+      !Number.isFinite(meeting.start) ||
+      !Number.isFinite(meeting.end) ||
+      meeting.start >= meeting.end
+    ) {
+      return false;
+    }
+
     if (
       meeting.start < preferences.earliestStart ||
       meeting.end > preferences.latestEnd
@@ -51,7 +74,7 @@ function totalCredits(
   sections: CourseSection[]
 ): number {
   return sections.reduce(
-    (total, section) => total + section.credits,
+    (sum, section) => sum + section.credits,
     0
   );
 }
@@ -70,10 +93,17 @@ export function generatePreferredSchedules(
   preferences: SchedulingPreferences,
   options: PreferredGenerationOptions = {}
 ): PreferredScheduleResult {
-  const maxResults = options.maxResults ?? 5;
-  const maxCombinations =
-    options.maxCombinations ?? 50000;
+  const maxResults = Math.max(
+    1,
+    Math.floor(options.maxResults ?? 5)
+  );
 
+  const maxCombinations = Math.max(
+    1,
+    Math.floor(options.maxCombinations ?? 50000)
+  );
+
+  const history = options.history ?? [];
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -82,21 +112,21 @@ export function generatePreferredSchedules(
     !Number.isFinite(preferences.maxCredits) ||
     preferences.targetCredits < 0 ||
     preferences.maxCredits <= 0 ||
-    preferences.targetCredits >
-      preferences.maxCredits
+    preferences.targetCredits > preferences.maxCredits
   ) {
     return {
       schedules: [],
       errors: [
-        "Target credits must be nonnegative and cannot exceed the maximum credit limit.",
+        "Target credits must be nonnegative and cannot exceed maximum credits.",
       ],
       warnings,
     };
   }
 
   if (
-    preferences.earliestStart >=
-    preferences.latestEnd
+    !Number.isFinite(preferences.earliestStart) ||
+    !Number.isFinite(preferences.latestEnd) ||
+    preferences.earliestStart >= preferences.latestEnd
   ) {
     return {
       schedules: [],
@@ -132,7 +162,7 @@ export function generatePreferredSchedules(
 
     if (!section) {
       errors.push(
-        `Locked section ${id} is not in the available section catalog.`
+        `Locked section ${id} was not found in the section catalog.`
       );
       continue;
     }
@@ -153,12 +183,49 @@ export function generatePreferredSchedules(
   }
 
   if (
-    totalCredits(locked) >
-    preferences.maxCredits
+    totalCredits(locked) > preferences.maxCredits
   ) {
     errors.push(
       "Locked sections exceed the maximum credit limit."
     );
+  }
+
+  // Cache eligibility so repeated sections of the same
+  // course do not trigger repeated evaluations.
+  const eligibilityCache = new Map<
+    string,
+    ReturnType<typeof evaluatePrerequisites>
+  >();
+
+  function eligibilityFor(courseCode: string) {
+    const code = normalizeCode(courseCode);
+
+    const cached = eligibilityCache.get(code);
+
+    if (cached) return cached;
+
+    const result = evaluatePrerequisites(
+      code,
+      history
+    );
+
+    eligibilityCache.set(code, result);
+
+    return result;
+  }
+
+  // A locked section is a hard constraint.
+  // If a known prerequisite is unmet, fail clearly.
+  for (const section of locked) {
+    const eligibility = eligibilityFor(
+      section.courseCode
+    );
+
+    if (eligibility.status === "ineligible") {
+      errors.push(
+        `${section.courseCode} is locked but does not meet the configured prerequisite rule: ${eligibility.explanation}`
+      );
+    }
   }
 
   if (errors.length > 0) {
@@ -175,18 +242,53 @@ export function generatePreferredSchedules(
 
   const lockedCodes = new Set(
     locked.map((section) =>
-      section.courseCode.trim().toUpperCase()
+      normalizeCode(section.courseCode)
     )
   );
 
+  // When recommendations are provided, only those
+  // sections can be added automatically.
+  // Locked sections remain allowed regardless.
+  const recommendedIds =
+    options.recommendedSectionIds === undefined
+      ? null
+      : new Set(options.recommendedSectionIds);
+
   const eligible = uniqueSections.filter(
-    (section) =>
-      !lockedIds.has(section.id) &&
-      !lockedCodes.has(
-        section.courseCode.trim().toUpperCase()
-      ) &&
-      fitsPreferences(section, preferences) &&
-      section.credits > 0
+    (section) => {
+      if (lockedIds.has(section.id)) {
+        return false;
+      }
+
+      if (
+        lockedCodes.has(
+          normalizeCode(section.courseCode)
+        )
+      ) {
+        return false;
+      }
+
+      if (
+        recommendedIds !== null &&
+        !recommendedIds.has(section.id)
+      ) {
+        return false;
+      }
+
+      if (
+        !fitsPreferences(section, preferences) ||
+        !Number.isFinite(section.credits) ||
+        section.credits <= 0
+      ) {
+        return false;
+      }
+
+      const eligibility = eligibilityFor(
+        section.courseCode
+      );
+
+      return eligibility.status !== "ineligible";
+    }
   );
 
   const grouped = new Map<
@@ -195,18 +297,21 @@ export function generatePreferredSchedules(
   >();
 
   for (const section of eligible) {
-    const code = section.courseCode
-      .trim()
-      .toUpperCase();
+    const code = normalizeCode(
+      section.courseCode
+    );
 
     const group = grouped.get(code) ?? [];
+
     group.push(section);
     grouped.set(code, group);
   }
 
   const groups = [...grouped.values()];
+
   const results: PreferredSchedule[] = [];
   const seen = new Set<string>();
+
   let explored = 0;
 
   function record(
@@ -215,6 +320,7 @@ export function generatePreferredSchedules(
     if (sections.length === 0) return;
 
     const key = scheduleKey(sections);
+
     if (seen.has(key)) return;
 
     seen.add(key);
@@ -237,6 +343,7 @@ export function generatePreferredSchedules(
     credits: number
   ) {
     if (explored >= maxCombinations) return;
+
     explored++;
 
     if (groupIndex === groups.length) {
@@ -244,20 +351,11 @@ export function generatePreferredSchedules(
       return;
     }
 
-    // Option 1: Skip this course.
-    search(
-      groupIndex + 1,
-      selected,
-      credits
-    );
-
-    // Option 2: Choose one section.
+    // Try a section before skipping the course.
+    // This favors populated schedules when the
+    // search limit is reached.
     for (const section of groups[groupIndex]) {
-      if (
-        explored >= maxCombinations
-      ) {
-        break;
-      }
+      if (explored >= maxCombinations) break;
 
       if (
         credits + section.credits >
@@ -281,6 +379,14 @@ export function generatePreferredSchedules(
         credits + section.credits
       );
     }
+
+    // The student does not have to take every
+    // recommended course in one semester.
+    search(
+      groupIndex + 1,
+      selected,
+      credits
+    );
   }
 
   search(
@@ -299,12 +405,37 @@ export function generatePreferredSchedules(
     (a, b) =>
       a.differenceFromTarget -
         b.differenceFromTarget ||
-      b.credits - a.credits ||
+      b.sections.length - a.sections.length ||
       a.id.localeCompare(b.id)
   );
 
+  const schedules = results.slice(
+    0,
+    maxResults
+  );
+
+  // Only warn about unknown prerequisite rules for
+  // courses that appear in the returned schedules.
+  const selectedCodes = new Set(
+    schedules.flatMap((schedule) =>
+      schedule.sections.map((section) =>
+        normalizeCode(section.courseCode)
+      )
+    )
+  );
+
+  for (const code of selectedCodes) {
+    const eligibility = eligibilityFor(code);
+
+    if (eligibility.status === "unknown") {
+      warnings.push(
+        `${code}: prerequisites have not been verified. Check LionPATH and the official course description.`
+      );
+    }
+  }
+
   return {
-    schedules: results.slice(0, maxResults),
+    schedules,
     errors,
     warnings,
   };
