@@ -2,240 +2,190 @@
 "use client";
 
 import { useMemo, useState } from "react";
+
+import Link from "next/link";
+
 import {
-    AlertTriangle,
+    BookOpen,
     CalendarDays,
-    Check,
-    ChevronDown,
-    ChevronUp,
+    Clock3,
     GraduationCap,
-    Plus,
     Search,
     Trash2,
 } from "lucide-react";
 
-import { AutomaticSchedules } from "@/components/scheduling/automatic-schedules";
+import { useAcademicStore } from "@/stores/academic-store";
+
+import type {
+    CourseSection,
+} from "@/types/schedule";
+
+import {
+    DEMO_SECTIONS,
+} from "@/data/scheduling/demo-sections";
+
+import {
+    recommendCourses,
+} from "@/lib/academic/recommend-courses";
+
+import {
+    canAddSection,
+    formatMinutes,
+    summarizeSchedule,
+} from "@/lib/scheduling/schedule-engine";
+
+import {
+    evaluatePrerequisites,
+} from "@/lib/academic/evaluate-prerequisites";
+
+import {
+    WeeklyCalendar,
+} from "@/components/scheduling/weekly-calendar";
 
 import {
     PreferredScheduleBuilder,
 } from "@/components/scheduling/preferred-schedule-builder";
 
 import {
-    WeeklyCalendar,
-} from "@/components/scheduling/weekly-calendar";
-
-import type {
-    GeneratedSchedule,
-} from "@/lib/scheduling/generate-schedules";
-
-import type { CourseSection } from "@/types/schedule";
-import type { CourseRecommendation } from "@/lib/academic/recommend-courses";
-
-import { DEMO_SECTIONS } from "@/data/scheduling/demo-sections";
-import { recommendCourses } from "@/lib/academic/recommend-courses";
-import { useAcademicStore } from "@/stores/academic-store";
+    RecommendationInsights,
+} from "@/components/scheduling/recommendation-insights";
 
 import {
-    canAddSection,
-    DAYS,
-    formatMinutes,
-    summarizeSchedule,
-} from "@/lib/scheduling/schedule-engine";
+    PageHeader,
+} from "@/components/ui/page-header";
 
-import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/ui/page-header";
+import {
+    MetricCard,
+} from "@/components/ui/metric-card";
 
-const DAY_LABELS: Record<string, string> = {
-    M: "Mon",
-    T: "Tue",
-    W: "Wed",
-    Th: "Thu",
-    F: "Fri",
-    Sa: "Sat",
-    Su: "Sun",
-};
+import {
+    Button,
+} from "@/components/ui/button";
 
-type GroupedCourse = {
-    code: string;
-    title: string;
-    credits: number;
-    sections: CourseSection[];
-};
-
-function groupSections(
-    sections: CourseSection[]
-): GroupedCourse[] {
-    const groups = new Map<string, GroupedCourse>();
-
-    for (const section of sections) {
-        const existing = groups.get(section.courseCode);
-
-        if (existing) {
-            existing.sections.push(section);
-        } else {
-            groups.set(section.courseCode, {
-                code: section.courseCode,
-                title: section.title,
-                credits: section.credits,
-                sections: [section],
-            });
-        }
-    }
-
-    return [...groups.values()].sort((a, b) =>
-        a.code.localeCompare(b.code)
-    );
-}
-
-function meetingLabel(section: CourseSection): string {
-    if (section.modality === "web") {
-        return "WEB / No scheduled meeting";
-    }
-
+function formatMeetingTimes(
+    section: CourseSection
+): string {
     if (section.meetings.length === 0) {
-        return "Meeting time not available";
+        return section.modality === "web"
+            ? "Web / asynchronous"
+            : "Arranged / no fixed meeting time";
     }
 
     return section.meetings
-        .map(
-            (meeting) =>
-                `${meeting.days
-                    .map((day) => DAY_LABELS[day])
-                    .join(" / ")} · ${formatMinutes(
-                        meeting.start
-                    )}–${formatMinutes(meeting.end)}`
-        )
-        .join(" | ");
+        .map((meeting) => {
+            const days = meeting.days.join("");
+
+            return `${days} ${formatMinutes(
+                meeting.start
+            )}–${formatMinutes(meeting.end)}`;
+        })
+        .join(" · ");
+}
+
+interface CourseGroupProps {
+    courseCode: string;
+    sections: CourseSection[];
+    selectedIds: string[];
+    onToggle: (section: CourseSection) => void;
+    recommended: boolean;
+    history: ReturnType<
+        typeof useAcademicStore.getState
+    >["courses"];
 }
 
 function CourseGroup({
-    group,
-    recommendation,
-    selected,
-    onAdd,
-    onRemove,
-}: {
-    group: GroupedCourse;
-    recommendation?: CourseRecommendation;
-    selected: CourseSection[];
-    onAdd: (section: CourseSection) => void;
-    onRemove: (id: string) => void;
-}) {
-    const [expanded, setExpanded] = useState(
-        Boolean(recommendation)
+    courseCode,
+    sections,
+    selectedIds,
+    onToggle,
+    recommended,
+    history,
+}: CourseGroupProps) {
+    const firstSection = sections[0];
+
+    const eligibility = evaluatePrerequisites(
+        courseCode,
+        history
     );
 
     return (
         <article className="border border-border bg-surface">
-            <button
-                type="button"
-                onClick={() => setExpanded((value) => !value)}
-                aria-expanded={expanded}
-                className="flex w-full items-start justify-between gap-4 p-5 text-left"
-            >
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
                 <div>
-                    <p className="font-display text-xs text-blue-accent">
-                        {group.code}
+                    <p className="font-display text-xs font-bold uppercase tracking-wider text-blue-accent">
+                        {courseCode}
                     </p>
 
-                    <h3 className="mt-2 text-sm font-medium">
-                        {group.title}
+                    <h3 className="mt-2 text-sm font-semibold">
+                        {firstSection.title}
                     </h3>
 
-                    <p className="mt-2 text-xs text-muted">
-                        {group.credits} credits ·{" "}
-                        {group.sections.length} demo{" "}
-                        {group.sections.length === 1
+                    <p className="mt-1 text-xs text-muted">
+                        {firstSection.credits} credits
+                        {" · "}
+                        {sections.length}{" "}
+                        {sections.length === 1
                             ? "section"
                             : "sections"}
                     </p>
-
-                    {recommendation && (
-                        <p className="mt-3 text-xs leading-5 text-muted">
-                            {recommendation.reason}
-                        </p>
-                    )}
                 </div>
 
-                {expanded ? (
-                    <ChevronUp
-                        size={18}
-                        className="shrink-0 text-muted"
-                    />
-                ) : (
-                    <ChevronDown
-                        size={18}
-                        className="shrink-0 text-muted"
-                    />
+                {recommended && (
+                    <span className="border border-border bg-blue-soft px-3 py-2 text-[10px] uppercase tracking-wide text-blue-accent">
+                        Recommended
+                    </span>
                 )}
-            </button>
+            </div>
 
-            {expanded && (
-                <div className="border-t border-border">
-                    {group.sections.map((section) => {
-                        const isSelected = selected.some(
-                            (item) => item.id === section.id
-                        );
+            <div className="space-y-3 p-4">
+                {sections.map((section) => {
+                    const selected = selectedIds.includes(
+                        section.id
+                    );
 
-                        const check = canAddSection(
-                            selected,
-                            section
-                        );
+                    return (
+                        <div
+                            key={section.id}
+                            className="flex flex-wrap items-center justify-between gap-3 border border-border bg-background p-4"
+                        >
+                            <div>
+                                <p className="font-display text-xs font-semibold">
+                                    Section {section.section}
+                                </p>
 
-                        return (
-                            <div
-                                key={section.id}
-                                className="flex flex-col gap-4 border-b border-border p-5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
-                            >
-                                <div>
-                                    <p className="font-display text-xs">
-                                        Section {section.section}
-                                    </p>
+                                <p className="mt-2 text-xs text-muted">
+                                    {formatMeetingTimes(section)}
+                                </p>
 
-                                    <p className="mt-2 text-xs leading-6 text-muted">
-                                        {meetingLabel(section)}
-                                    </p>
-
-                                    <p className="mt-1 text-xs text-muted">
-                                        {section.campus} ·{" "}
-                                        {section.modality.replace("_", " ")}
-                                    </p>
-
-                                    {!isSelected && !check.allowed && (
-                                        <p className="mt-2 text-xs text-blue-accent">
-                                            Conflicts with your selected schedule
-                                        </p>
-                                    )}
-                                </div>
-
-                                <Button
-                                    size="sm"
-                                    variant={
-                                        isSelected ? "secondary" : "primary"
-                                    }
-                                    onClick={() =>
-                                        isSelected
-                                            ? onRemove(section.id)
-                                            : onAdd(section)
-                                    }
-                                >
-                                    {isSelected ? (
-                                        <>
-                                            <Check size={14} />
-                                            Selected
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Plus size={14} />
-                                            Add section
-                                        </>
-                                    )}
-                                </Button>
+                                <p className="mt-1 text-xs text-muted">
+                                    {section.campus}
+                                    {section.instructor
+                                        ? ` · ${section.instructor}`
+                                        : ""}
+                                </p>
                             </div>
-                        );
-                    })}
-                </div>
-            )}
+
+                            <Button
+                                variant={
+                                    selected ? "secondary" : "primary"
+                                }
+                                size="sm"
+                                onClick={() => onToggle(section)}
+                            >
+                                {selected ? "Remove" : "Add section"}
+                            </Button>
+                        </div>
+                    );
+                })}
+
+                {eligibility.status !== "eligible" && (
+                    <p className="text-xs leading-5 text-muted">
+                        {eligibility.status === "unknown"
+                            ? "Prerequisites have not been verified."
+                            : `Configured prerequisite rule not met: ${eligibility.explanation}`}
+                    </p>
+                )}
+            </div>
         </article>
     );
 }
@@ -257,7 +207,9 @@ export default function SchedulePage() {
         useState<string[]>([]);
 
     const [search, setSearch] = useState("");
+
     const [showAll, setShowAll] = useState(false);
+
     const [warning, setWarning] =
         useState<string | null>(null);
 
@@ -286,362 +238,355 @@ export default function SchedulePage() {
         [courses, reportLoaded, cyberOption]
     );
 
-    const recommendationMap = useMemo(
+    const recommendedCodes = useMemo(
         () =>
-            new Map(
-                recommendations.map((item) => [
-                    item.courseCode,
-                    item,
-                ])
+            new Set(
+                recommendations.map(
+                    (item) => item.courseCode
+                )
             ),
         [recommendations]
     );
 
-    const grouped = useMemo(
-        () => groupSections(DEMO_SECTIONS),
-        []
-    );
+    const groupedSections = useMemo(() => {
+        const filtered = DEMO_SECTIONS.filter(
+            (section) => {
+                const matchesSearch =
+                    `${section.courseCode} ${section.title}`
+                        .toLowerCase()
+                        .includes(search.toLowerCase());
 
-    const visibleGroups = useMemo(() => {
-        const query = search.trim().toLowerCase();
+                const matchesMode =
+                    showAll ||
+                    !reportLoaded ||
+                    recommendedCodes.has(
+                        section.courseCode
+                    );
 
-        return grouped.filter((group) => {
-            const matchesSearch =
-                group.code.toLowerCase().includes(query) ||
-                group.title.toLowerCase().includes(query);
+                return matchesSearch && matchesMode;
+            }
+        );
 
-            const matchesMode =
-                showAll ||
-                !reportLoaded ||
-                recommendationMap.has(group.code);
+        const groups = new Map<
+            string,
+            CourseSection[]
+        >();
 
-            return matchesSearch && matchesMode;
-        });
+        for (const section of filtered) {
+            const group =
+                groups.get(section.courseCode) ?? [];
+
+            group.push(section);
+            groups.set(section.courseCode, group);
+        }
+
+        return [...groups.entries()].map(
+            ([courseCode, sections]) => ({
+                courseCode,
+                sections,
+            })
+        );
     }, [
-        grouped,
         search,
         showAll,
         reportLoaded,
-        recommendationMap,
+        recommendedCodes,
     ]);
 
-    function addSection(section: CourseSection) {
-        if (selectedIds.includes(section.id)) return;
+    function toggleSection(
+        section: CourseSection
+    ) {
+        setWarning(null);
 
-        const check = canAddSection(selected, section);
-
-        if (!check.allowed) {
-            const conflict = check.conflicts[0];
-
-            setWarning(
-                conflict.reason === "same_course"
-                    ? `You already selected a section of ${section.courseCode}. Remove that section first.`
-                    : `${section.courseCode} section ${section.section} overlaps with a selected class on ${DAY_LABELS[conflict.day ?? "M"]
-                    }.`
+        if (selectedIds.includes(section.id)) {
+            setSelectedIds((current) =>
+                current.filter(
+                    (id) => id !== section.id
+                )
             );
-
             return;
         }
 
-        setSelectedIds((previous) => [
-            ...previous,
+        const result = canAddSection(
+            selected,
+            section
+        );
+
+        if (!result.allowed) {
+            setWarning(
+                "This section conflicts with your current schedule. Remove the conflicting section before adding it."
+            );
+            return;
+        }
+
+        setSelectedIds((current) => [
+            ...current,
             section.id,
         ]);
-
-        setWarning(null);
     }
 
     function removeSection(id: string) {
-        setSelectedIds((previous) =>
-            previous.filter((item) => item !== id)
+        setSelectedIds((current) =>
+            current.filter((item) => item !== id)
         );
 
         setWarning(null);
     }
 
-
-    function applyGeneratedSchedule(
-        schedule: GeneratedSchedule
+    function useGeneratedSchedule(
+        sections: CourseSection[]
     ) {
         setSelectedIds(
-            schedule.sections.map((section) => section.id)
+            sections.map((section) => section.id)
         );
 
         setWarning(null);
     }
-
 
     return (
         <div className="space-y-8">
             <PageHeader
-                eyebrow="LionPlan / Academic Scheduling"
-                title="Semester Planner"
-                description="Explore course recommendations, compare sections, and assemble a conflict-free demonstration schedule."
+                eyebrow="Semester planning"
+                title="Schedule Builder"
+                description="Explore course sections, understand recommendations, and build a conflict-free weekly schedule."
             />
 
-            <div className="border-l-2 border-psu-blue bg-blue-soft p-4 text-xs leading-6">
-                <strong>Prototype:</strong> All displayed
-                sections and meeting times are fictional.
-                Recommendations use preliminary degree rules
-                and do not confirm registration eligibility.
-            </div>
+            {!reportLoaded && (
+                <section className="border border-border bg-surface p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                            <h2 className="font-display text-sm uppercase tracking-wider">
+                                Import your academic record
+                            </h2>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-                {[
-                    {
-                        label: "Selected courses",
-                        value: summary.courseCount,
-                    },
-                    {
-                        label: "Scheduled credits",
-                        value: summary.credits,
-                    },
-                    {
-                        label: "Time conflicts",
-                        value: summary.conflicts.length,
-                    },
-                ].map((metric) => (
-                    <div
-                        key={metric.label}
-                        className="border border-border bg-surface p-5"
-                    >
-                        <p className="text-xs text-muted">
-                            {metric.label}
-                        </p>
+                            <p className="mt-2 text-xs leading-5 text-muted">
+                                Import a LionPATH report or load the
+                                fictional demo student to enable
+                                degree-based recommendations.
+                            </p>
+                        </div>
 
-                        <p className="mt-3 font-display text-2xl">
-                            {metric.value}
-                        </p>
+                        <Link
+                            href="/planner"
+                            className="bg-psu-blue px-4 py-3 text-xs font-semibold text-white"
+                        >
+                            Go to Degree Planner
+                        </Link>
                     </div>
-                ))}
+                </section>
+            )}
+
+
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <MetricCard
+                    label="Selected credits"
+                    value={summary.credits}
+                    description="Total credits in your current schedule"
+                    icon={<GraduationCap size={18} />}
+                />
+
+                <MetricCard
+                    label="Selected courses"
+                    value={summary.courseCount}
+                    description="Distinct course codes selected"
+                    icon={<BookOpen size={18} />}
+                />
+
+                <MetricCard
+                    label="Conflicts"
+                    value={summary.conflicts.length}
+                    description="Detected overlapping meetings or duplicate courses"
+                    icon={<Clock3 size={18} />}
+                />
+
+                <MetricCard
+                    label="Recommended courses"
+                    value={
+                        new Set(
+                            recommendations.map((item) => item.courseCode)
+                        ).size
+                    }
+                    description="Courses matching unmet provisional requirements"
+                    icon={<CalendarDays size={18} />}
+                />
             </div>
 
 
             {reportLoaded && (
-
-                <PreferredScheduleBuilder
-                    catalogSections={DEMO_SECTIONS}
-                    recommendations={recommendations}
-                    history={courses}
-                    onUseSchedule={(sections) => {
-                        setSelectedIds(
-                            sections.map((section) => section.id)
-                        );
-                        setWarning(null);
-                    }}
-                />
-
-            )}
-
-
-            {warning && (
-                <div
-                    role="alert"
-                    className="flex items-start gap-3 border border-border bg-surface p-4"
-                >
-                    <AlertTriangle
-                        size={18}
-                        className="mt-0.5 shrink-0 text-blue-accent"
+                <div className="space-y-8">
+                    <RecommendationInsights
+                        recommendations={recommendations}
+                        history={courses}
                     />
-                    <p className="text-sm">{warning}</p>
+
+                    <PreferredScheduleBuilder
+                        catalogSections={DEMO_SECTIONS}
+                        recommendations={recommendations}
+                        history={courses}
+                        onUseSchedule={useGeneratedSchedule}
+                    />
                 </div>
             )}
 
-            <div className="grid gap-8 xl:grid-cols-[1.25fr_1fr]">
-                <section>
-                    <div className="flex items-center gap-2">
-                        <GraduationCap size={18} />
-
+            <section className="space-y-5">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
                         <h2 className="font-display text-sm uppercase tracking-wider">
-                            Course selection
+                            Course section catalog
                         </h2>
+
+                        <p className="mt-2 text-xs text-muted">
+                            Fictional section data for demonstration.
+                            Not live LionPATH enrollment information.
+                        </p>
                     </div>
 
-                    {reportLoaded ? (
-                        <div className="mt-5 border border-border bg-surface p-5">
-                            <p className="font-display text-xs text-blue-accent">
-                                PERSONALIZED / PROVISIONAL
-                            </p>
-
-                            <p className="mt-3 text-sm">
-                                {recommendations.length} candidate{" "}
-                                {recommendations.length === 1
-                                    ? "course"
-                                    : "courses"}{" "}
-                                found in the demo section catalog.
-                            </p>
-
-                            <p className="mt-2 text-xs leading-5 text-muted">
-                                Based on imported course history and
-                                the {cyberOption} option. Only courses
-                                with demo sections are shown.
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="mt-5 border border-border bg-surface p-5">
-                            <p className="text-sm font-medium">
-                                No academic report imported
-                            </p>
-
-                            <p className="mt-2 text-xs leading-6 text-muted">
-                                Import a LionPATH report in Degree
-                                Progress to see candidate courses.
-                                You can still explore the demo catalog.
-                            </p>
-
-                            <a
-                                href="/planner"
-                                className="mt-3 inline-block text-xs text-blue-accent underline underline-offset-4"
-                            >
-                                Go to Degree Progress
-                            </a>
-                        </div>
-                    )}
-
-                    <div className="mt-5 flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2">
                         <Button
-                            size="sm"
                             variant={!showAll ? "primary" : "secondary"}
+                            size="sm"
                             onClick={() => setShowAll(false)}
                         >
                             Recommended
                         </Button>
 
                         <Button
-                            size="sm"
                             variant={showAll ? "primary" : "secondary"}
+                            size="sm"
                             onClick={() => setShowAll(true)}
                         >
-                            All demo courses
+                            All sections
                         </Button>
                     </div>
+                </div>
 
-                    <div className="relative mt-5">
-                        <Search
-                            size={17}
-                            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-                        />
+                <div className="flex items-center gap-3 border border-border bg-surface px-4 py-3">
+                    <Search
+                        size={16}
+                        className="text-muted"
+                    />
 
-                        <input
-                            type="search"
-                            value={search}
-                            onChange={(event) =>
-                                setSearch(event.target.value)
-                            }
-                            placeholder="Search course code or title"
-                            aria-label="Search courses"
-                            className="w-full border border-border bg-surface py-3 pl-11 pr-4 text-sm text-foreground"
-                        />
+                    <input
+                        type="search"
+                        value={search}
+                        onChange={(event) =>
+                            setSearch(event.target.value)
+                        }
+                        placeholder="Search by course code or title"
+                        className="w-full bg-transparent text-sm outline-none placeholder:text-muted"
+                    />
+                </div>
+
+                {warning && (
+                    <div
+                        role="alert"
+                        className="border border-border bg-surface-muted p-4 text-sm"
+                    >
+                        {warning}
                     </div>
+                )}
 
-                    <div className="mt-4 space-y-3">
-                        {visibleGroups.map((group) => (
-                            <CourseGroup
-                                key={group.code}
-                                group={group}
-                                recommendation={recommendationMap.get(
-                                    group.code
-                                )}
-                                selected={selected}
-                                onAdd={addSection}
-                                onRemove={removeSection}
-                            />
-                        ))}
-
-                        {visibleGroups.length === 0 && (
-                            <div className="border border-border bg-surface p-8">
-                                <p className="text-sm font-medium">
-                                    No matching courses
-                                </p>
-
-                                <p className="mt-2 text-xs leading-6 text-muted">
-                                    Try a different search or select
-                                    All demo courses. The limited demo
-                                    catalog may not contain your remaining
-                                    requirements.
-                                </p>
-                            </div>
-                        )}
+                {groupedSections.length === 0 ? (
+                    <div className="border border-border bg-surface p-6">
+                        <p className="text-sm text-muted">
+                            No sections match the current filters.
+                            Try viewing all sections or changing
+                            your search.
+                        </p>
                     </div>
-                </section>
-
-                <section>
-                    <div className="flex items-center gap-2">
-                        <CalendarDays size={18} />
-
-                        <h2 className="font-display text-sm uppercase tracking-wider">
-                            Selected schedule
-                        </h2>
-                    </div>
-
-                    <div className="mt-5 border border-border bg-surface">
-                        {selected.length === 0 ? (
-                            <div className="p-8 text-center">
-                                <CalendarDays
-                                    size={28}
-                                    className="mx-auto text-muted"
+                ) : (
+                    <div className="grid gap-4 xl:grid-cols-2">
+                        {groupedSections.map(
+                            ({ courseCode, sections }) => (
+                                <CourseGroup
+                                    key={courseCode}
+                                    courseCode={courseCode}
+                                    sections={sections}
+                                    selectedIds={selectedIds}
+                                    onToggle={toggleSection}
+                                    recommended={recommendedCodes.has(
+                                        courseCode
+                                    )}
+                                    history={courses}
                                 />
-
-                                <p className="mt-4 text-sm font-medium">
-                                    No sections selected
-                                </p>
-
-                                <p className="mt-2 text-xs text-muted">
-                                    Expand a course and choose a section.
-                                </p>
-                            </div>
-                        ) : (
-                            selected.map((section) => (
-                                <div
-                                    key={section.id}
-                                    className="flex items-start justify-between gap-3 border-b border-border p-4 last:border-b-0"
-                                >
-                                    <div>
-                                        <p className="font-display text-xs">
-                                            {section.courseCode} /{" "}
-                                            {section.section}
-                                        </p>
-
-                                        <p className="mt-2 text-xs leading-5 text-muted">
-                                            {meetingLabel(section)}
-                                        </p>
-                                    </div>
-
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            removeSection(section.id)
-                                        }
-                                        aria-label={`Remove ${section.courseCode} section ${section.section}`}
-                                        className="p-2 text-muted hover:text-foreground"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
-                                </div>
-                            ))
+                            )
                         )}
                     </div>
+                )}
+            </section>
+
+            <section className="border border-border bg-surface">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
+                    <h2 className="font-display text-xs uppercase tracking-wider">
+                        Selected sections
+                    </h2>
 
                     {selected.length > 0 && (
-                        <button
-                            type="button"
+                        <Button
+                            variant="secondary"
+                            size="sm"
                             onClick={() => {
                                 setSelectedIds([]);
                                 setWarning(null);
                             }}
-                            className="mt-4 text-xs text-muted underline underline-offset-4"
                         >
+                            <Trash2 size={14} />
                             Clear schedule
-                        </button>
+                        </Button>
                     )}
+                </div>
 
-
-                    <div className="mt-6">
-                        <WeeklyCalendar sections={selected} />
+                {selected.length === 0 ? (
+                    <div className="p-6">
+                        <p className="text-sm text-muted">
+                            No sections selected yet. Add classes
+                            manually or generate a personalized
+                            schedule.
+                        </p>
                     </div>
+                ) : (
+                    <div className="divide-y divide-border">
+                        {selected.map((section) => (
+                            <div
+                                key={section.id}
+                                className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
+                            >
+                                <div>
+                                    <p className="font-display text-xs font-semibold">
+                                        {section.courseCode}
+                                        {" · "}
+                                        Section {section.section}
+                                    </p>
 
-                </section>
-            </div>
+                                    <p className="mt-2 text-xs text-muted">
+                                        {formatMeetingTimes(section)}
+                                    </p>
+                                </div>
+
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() =>
+                                        removeSection(section.id)
+                                    }
+                                >
+                                    Remove
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </section>
+
+            <WeeklyCalendar sections={selected} />
+
+            <p className="text-xs leading-5 text-muted">
+                LionPlan is an independent academic planning
+                prototype. Degree requirements, prerequisites,
+                course sections, and registration eligibility
+                must be verified using official Penn State
+                resources and academic advising.
+            </p>
         </div>
     );
 }

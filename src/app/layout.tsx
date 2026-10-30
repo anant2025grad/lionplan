@@ -3,13 +3,18 @@ import type { Metadata } from "next";
 
 import "./globals.css";
 
-import { ThemeProvider } from "@/components/providers/theme-provider";
-import { AppShell } from "@/components/layout/app-shell";
+import {
+  ThemeProvider,
+} from "@/components/providers/theme-provider";
+
+import {
+  AppShell,
+} from "@/components/layout/app-shell";
 
 export const metadata: Metadata = {
-  title: "LionPlan | Academic Planning",
+  title: "LionPlan",
   description:
-    "A collaborative academic planning workspace for students and advisors.",
+    "Academic planning and scheduling for Penn State students.",
 };
 
 export default function RootLayout({
