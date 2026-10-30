@@ -35,6 +35,11 @@ const navigation = [
     href: "/advisor",
     icon: BookOpen,
   },
+  {
+  label: "Schedule Builder",
+  href: "/schedule",
+  icon: CalendarDays,
+  },
 ];
 
 export function AppShell({
