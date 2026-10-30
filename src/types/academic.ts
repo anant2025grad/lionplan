@@ -5,6 +5,7 @@ export type CourseStatus =
   | "low_grade"
   | "no_credit";
 
+
 export interface StudentCourse {
   code: string;
   title: string;
@@ -12,7 +13,9 @@ export interface StudentCourse {
   term: string;
   grade?: string;
   status: CourseStatus;
+  source?: "EN" | "TE" | "TR" | "IP" | "TC";
 }
+
 
 export interface DegreeRequirement {
   id: string;
