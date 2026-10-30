@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 
 
+import { GeneralEducation } from "@/components/planner/general-education";
+
 import { DegreeRequirements } from "@/components/planner/degree-requirements";
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard } from "@/components/ui/metric-card";
@@ -200,6 +202,9 @@ export default function PlannerPage() {
           </section>
           
 <DegreeRequirements />
+
+<GeneralEducation />
+
 
 
           <p className="text-xs leading-6 text-muted">
