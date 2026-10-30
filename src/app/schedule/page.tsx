@@ -17,6 +17,10 @@ import {
 import { AutomaticSchedules } from "@/components/scheduling/automatic-schedules";
 
 import {
+    PreferredScheduleBuilder,
+} from "@/components/scheduling/preferred-schedule-builder";
+
+import {
     WeeklyCalendar,
 } from "@/components/scheduling/weekly-calendar";
 
@@ -414,10 +418,14 @@ export default function SchedulePage() {
 
 
             {reportLoaded && (
-                <AutomaticSchedules
+                <PreferredScheduleBuilder
                     recommendations={recommendations}
-                    history={courses}
-                    onSelect={applyGeneratedSchedule}
+                    onUseSchedule={(sections) => {
+                        setSelectedIds(
+                            sections.map((section) => section.id)
+                        );
+                        setWarning(null);
+                    }}
                 />
             )}
 
