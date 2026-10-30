@@ -16,6 +16,10 @@ import {
 
 import { AutomaticSchedules } from "@/components/scheduling/automatic-schedules";
 
+import {
+    WeeklyCalendar,
+} from "@/components/scheduling/weekly-calendar";
+
 import type {
     GeneratedSchedule,
 } from "@/lib/scheduling/generate-schedules";
@@ -619,57 +623,11 @@ export default function SchedulePage() {
                         </button>
                     )}
 
-                    <div className="mt-6 border border-border bg-surface p-5">
-                        <p className="font-display text-xs uppercase tracking-wider">
-                            Weekly overview
-                        </p>
 
-                        <div className="mt-5 grid grid-cols-5 gap-2">
-                            {DAYS.slice(0, 5).map((day) => (
-                                <div key={day} className="min-w-0">
-                                    <p className="border-b border-border pb-3 text-center font-display text-[10px]">
-                                        {DAY_LABELS[day]}
-                                    </p>
-
-                                    <div className="mt-3 space-y-2">
-                                        {selected
-                                            .flatMap((section) =>
-                                                section.meetings
-                                                    .filter((meeting) =>
-                                                        meeting.days.includes(day)
-                                                    )
-                                                    .map((meeting, index) => ({
-                                                        section,
-                                                        meeting,
-                                                        key: `${section.id}-${index}`,
-                                                    }))
-                                            )
-                                            .sort(
-                                                (a, b) =>
-                                                    a.meeting.start -
-                                                    b.meeting.start
-                                            )
-                                            .map((item) => (
-                                                <div
-                                                    key={item.key}
-                                                    className="min-w-0 border-l-2 border-psu-blue bg-blue-soft p-2"
-                                                >
-                                                    <p className="break-words font-display text-[10px] font-bold">
-                                                        {item.section.courseCode}
-                                                    </p>
-
-                                                    <p className="mt-1 text-[10px] leading-4">
-                                                        {formatMinutes(
-                                                            item.meeting.start
-                                                        )}
-                                                    </p>
-                                                </div>
-                                            ))}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                    <div className="mt-6">
+                        <WeeklyCalendar sections={selected} />
                     </div>
+
                 </section>
             </div>
         </div>

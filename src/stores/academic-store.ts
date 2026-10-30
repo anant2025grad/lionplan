@@ -20,8 +20,12 @@ interface AcademicState {
         warnings: string[]
     ) => void;
 
+    selectedProgramId: string;
+    setSelectedProgramId: (id: string) => void;
+
     cyberOption: CyberOption;
     setCyberOption: (option: CyberOption) => void;
+
 
     clearReport: () => void;
 }
@@ -32,6 +36,11 @@ export const useAcademicStore =
         reportLoaded: false,
         isPreMajor: false,
         warnings: [],
+
+        selectedProgramId: "cybersecurity-bs",
+
+        setSelectedProgramId: (id) =>
+            set({ selectedProgramId: id }),
 
         cyberOption: "operations",
         setCyberOption: (option) =>

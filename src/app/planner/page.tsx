@@ -7,6 +7,8 @@ import {
   RotateCcw,
 } from "lucide-react";
 
+import { ProgramSelector } from "@/components/planner/program-selector";
+
 
 import { GeneralEducation } from "@/components/planner/general-education";
 
@@ -200,6 +202,8 @@ export default function PlannerPage() {
               </table>
             </div>
           </section>
+
+<ProgramSelector />
           
 <DegreeRequirements />
 
