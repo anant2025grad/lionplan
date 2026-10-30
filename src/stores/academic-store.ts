@@ -5,41 +5,54 @@ import { create } from "zustand";
 
 import type { StudentCourse } from "@/types/academic";
 
+import type { CyberOption } from "@/data/programs/cyber-requirements";
+
+
 interface AcademicState {
-  courses: StudentCourse[];
-  reportLoaded: boolean;
-  isPreMajor: boolean;
-  warnings: string[];
+    courses: StudentCourse[];
+    reportLoaded: boolean;
+    isPreMajor: boolean;
+    warnings: string[];
 
-  setReport: (
-    courses: StudentCourse[],
-    isPreMajor: boolean,
-    warnings: string[]
-  ) => void;
+    setReport: (
+        courses: StudentCourse[],
+        isPreMajor: boolean,
+        warnings: string[]
+    ) => void;
 
-  clearReport: () => void;
+    cyberOption: CyberOption;
+    setCyberOption: (option: CyberOption) => void;
+
+    clearReport: () => void;
 }
 
 export const useAcademicStore =
-  create<AcademicState>((set) => ({
-    courses: [],
-    reportLoaded: false,
-    isPreMajor: false,
-    warnings: [],
-
-    setReport: (courses, isPreMajor, warnings) =>
-      set({
-        courses,
-        reportLoaded: true,
-        isPreMajor,
-        warnings,
-      }),
-
-    clearReport: () =>
-      set({
+    create<AcademicState>((set) => ({
         courses: [],
         reportLoaded: false,
         isPreMajor: false,
         warnings: [],
-      }),
-  }));
+
+        cyberOption: "operations",
+        setCyberOption: (option) =>
+            set({ cyberOption: option }),
+
+
+        setReport: (courses, isPreMajor, warnings) =>
+            set({
+                courses,
+                reportLoaded: true,
+                isPreMajor,
+                warnings,
+            }),
+
+        clearReport: () =>
+            set({
+                courses: [],
+                reportLoaded: false,
+                isPreMajor: false,
+                warnings: [],
+            }),
+
+
+    }));

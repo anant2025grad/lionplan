@@ -6,12 +6,20 @@ import {
   AlertTriangle,
   CalendarDays,
   Check,
+  ChevronDown,
+  ChevronUp,
+  GraduationCap,
   Plus,
+  Search,
   Trash2,
 } from "lucide-react";
 
-import { DEMO_SECTIONS } from "@/data/scheduling/demo-sections";
 import type { CourseSection } from "@/types/schedule";
+import type { CourseRecommendation } from "@/lib/academic/recommend-courses";
+
+import { DEMO_SECTIONS } from "@/data/scheduling/demo-sections";
+import { recommendCourses } from "@/lib/academic/recommend-courses";
+import { useAcademicStore } from "@/stores/academic-store";
 
 import {
   canAddSection,
@@ -32,6 +40,38 @@ const DAY_LABELS: Record<string, string> = {
   Sa: "Sat",
   Su: "Sun",
 };
+
+type GroupedCourse = {
+  code: string;
+  title: string;
+  credits: number;
+  sections: CourseSection[];
+};
+
+function groupSections(
+  sections: CourseSection[]
+): GroupedCourse[] {
+  const groups = new Map<string, GroupedCourse>();
+
+  for (const section of sections) {
+    const existing = groups.get(section.courseCode);
+
+    if (existing) {
+      existing.sections.push(section);
+    } else {
+      groups.set(section.courseCode, {
+        code: section.courseCode,
+        title: section.title,
+        credits: section.credits,
+        sections: [section],
+      });
+    }
+  }
+
+  return [...groups.values()].sort((a, b) =>
+    a.code.localeCompare(b.code)
+  );
+}
 
 function meetingLabel(section: CourseSection): string {
   if (section.modality === "web") {
@@ -54,16 +94,158 @@ function meetingLabel(section: CourseSection): string {
     .join(" | ");
 }
 
-export default function SchedulePage() {
-  const [selectedIds, setSelectedIds] = useState<string[]>(
-    []
+function CourseGroup({
+  group,
+  recommendation,
+  selected,
+  onAdd,
+  onRemove,
+}: {
+  group: GroupedCourse;
+  recommendation?: CourseRecommendation;
+  selected: CourseSection[];
+  onAdd: (section: CourseSection) => void;
+  onRemove: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(
+    Boolean(recommendation)
   );
 
-  const [warning, setWarning] = useState<string | null>(
-    null
+  return (
+    <article className="border border-border bg-surface">
+      <button
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
+        aria-expanded={expanded}
+        className="flex w-full items-start justify-between gap-4 p-5 text-left"
+      >
+        <div>
+          <p className="font-display text-xs text-blue-accent">
+            {group.code}
+          </p>
+
+          <h3 className="mt-2 text-sm font-medium">
+            {group.title}
+          </h3>
+
+          <p className="mt-2 text-xs text-muted">
+            {group.credits} credits ·{" "}
+            {group.sections.length} demo{" "}
+            {group.sections.length === 1
+              ? "section"
+              : "sections"}
+          </p>
+
+          {recommendation && (
+            <p className="mt-3 text-xs leading-5 text-muted">
+              {recommendation.reason}
+            </p>
+          )}
+        </div>
+
+        {expanded ? (
+          <ChevronUp
+            size={18}
+            className="shrink-0 text-muted"
+          />
+        ) : (
+          <ChevronDown
+            size={18}
+            className="shrink-0 text-muted"
+          />
+        )}
+      </button>
+
+      {expanded && (
+        <div className="border-t border-border">
+          {group.sections.map((section) => {
+            const isSelected = selected.some(
+              (item) => item.id === section.id
+            );
+
+            const check = canAddSection(
+              selected,
+              section
+            );
+
+            return (
+              <div
+                key={section.id}
+                className="flex flex-col gap-4 border-b border-border p-5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="font-display text-xs">
+                    Section {section.section}
+                  </p>
+
+                  <p className="mt-2 text-xs leading-6 text-muted">
+                    {meetingLabel(section)}
+                  </p>
+
+                  <p className="mt-1 text-xs text-muted">
+                    {section.campus} ·{" "}
+                    {section.modality.replace("_", " ")}
+                  </p>
+
+                  {!isSelected && !check.allowed && (
+                    <p className="mt-2 text-xs text-blue-accent">
+                      Conflicts with your selected schedule
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  size="sm"
+                  variant={
+                    isSelected ? "secondary" : "primary"
+                  }
+                  onClick={() =>
+                    isSelected
+                      ? onRemove(section.id)
+                      : onAdd(section)
+                  }
+                >
+                  {isSelected ? (
+                    <>
+                      <Check size={14} />
+                      Selected
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={14} />
+                      Add section
+                    </>
+                  )}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </article>
   );
+}
+
+export default function SchedulePage() {
+  const courses = useAcademicStore(
+    (state) => state.courses
+  );
+
+  const reportLoaded = useAcademicStore(
+    (state) => state.reportLoaded
+  );
+
+  const cyberOption = useAcademicStore(
+    (state) => state.cyberOption
+  );
+
+  const [selectedIds, setSelectedIds] =
+    useState<string[]>([]);
 
   const [search, setSearch] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  const [warning, setWarning] =
+    useState<string | null>(null);
 
   const selected = useMemo(
     () =>
@@ -78,30 +260,71 @@ export default function SchedulePage() {
     [selected]
   );
 
-  const filtered = useMemo(() => {
+  const recommendations = useMemo(
+    () =>
+      reportLoaded
+        ? recommendCourses(
+            courses,
+            DEMO_SECTIONS,
+            cyberOption
+          )
+        : [],
+    [courses, reportLoaded, cyberOption]
+  );
+
+  const recommendationMap = useMemo(
+    () =>
+      new Map(
+        recommendations.map((item) => [
+          item.courseCode,
+          item,
+        ])
+      ),
+    [recommendations]
+  );
+
+  const grouped = useMemo(
+    () => groupSections(DEMO_SECTIONS),
+    []
+  );
+
+  const visibleGroups = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    return DEMO_SECTIONS.filter(
-      (section) =>
-        section.courseCode
-          .toLowerCase()
-          .includes(query) ||
-        section.title.toLowerCase().includes(query)
-    );
-  }, [search]);
+    return grouped.filter((group) => {
+      const matchesSearch =
+        group.code.toLowerCase().includes(query) ||
+        group.title.toLowerCase().includes(query);
+
+      const matchesMode =
+        showAll ||
+        !reportLoaded ||
+        recommendationMap.has(group.code);
+
+      return matchesSearch && matchesMode;
+    });
+  }, [
+    grouped,
+    search,
+    showAll,
+    reportLoaded,
+    recommendationMap,
+  ]);
 
   function addSection(section: CourseSection) {
     if (selectedIds.includes(section.id)) return;
 
-    const result = canAddSection(selected, section);
+    const check = canAddSection(selected, section);
 
-    if (!result.allowed) {
-      const first = result.conflicts[0];
+    if (!check.allowed) {
+      const conflict = check.conflicts[0];
 
       setWarning(
-        first.reason === "same_course"
-          ? `You already selected a section of ${section.courseCode}. Remove it before choosing another.`
-          : `${section.courseCode} section ${section.section} overlaps with an existing class on ${DAY_LABELS[first.day ?? "M"]}.`
+        conflict.reason === "same_course"
+          ? `You already selected a section of ${section.courseCode}. Remove that section first.`
+          : `${section.courseCode} section ${section.section} overlaps with a selected class on ${
+              DAY_LABELS[conflict.day ?? "M"]
+            }.`
       );
 
       return;
@@ -126,34 +349,43 @@ export default function SchedulePage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="LionPlan / Semester Planning"
-        title="Schedule Builder"
-        description="Build a conflict-free class schedule using demonstration sections."
+        eyebrow="LionPlan / Academic Scheduling"
+        title="Semester Planner"
+        description="Explore course recommendations, compare sections, and assemble a conflict-free demonstration schedule."
       />
 
       <div className="border-l-2 border-psu-blue bg-blue-soft p-4 text-xs leading-6">
-        <strong>Demo mode:</strong> All sections and
-        meeting times on this page are fictional.
-        They do not represent live Penn State
-        enrollment data.
+        <strong>Prototype:</strong> All displayed
+        sections and meeting times are fictional.
+        Recommendations use preliminary degree rules
+        and do not confirm registration eligibility.
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         {[
-          ["Selected courses", summary.courseCount],
-          ["Scheduled credits", summary.credits],
-          ["Time conflicts", summary.conflicts.length],
-        ].map(([label, value]) => (
+          {
+            label: "Selected courses",
+            value: summary.courseCount,
+          },
+          {
+            label: "Scheduled credits",
+            value: summary.credits,
+          },
+          {
+            label: "Time conflicts",
+            value: summary.conflicts.length,
+          },
+        ].map((metric) => (
           <div
-            key={String(label)}
+            key={metric.label}
             className="border border-border bg-surface p-5"
           >
             <p className="text-xs text-muted">
-              {label}
+              {metric.label}
             </p>
 
             <p className="mt-3 font-display text-2xl">
-              {value}
+              {metric.value}
             </p>
           </div>
         ))}
@@ -168,117 +400,136 @@ export default function SchedulePage() {
             size={18}
             className="mt-0.5 shrink-0 text-blue-accent"
           />
-
           <p className="text-sm">{warning}</p>
         </div>
       )}
 
-      <div className="grid gap-8 xl:grid-cols-[1.2fr_1fr]">
+      <div className="grid gap-8 xl:grid-cols-[1.25fr_1fr]">
         <section>
           <div className="flex items-center gap-2">
-            <CalendarDays size={17} />
+            <GraduationCap size={18} />
 
             <h2 className="font-display text-sm uppercase tracking-wider">
-              Available demo sections
+              Course selection
             </h2>
           </div>
 
-          <input
-            type="search"
-            value={search}
-            onChange={(event) =>
-              setSearch(event.target.value)
-            }
-            placeholder="Search by course code or title"
-            aria-label="Search demo sections"
-            className="mt-5 w-full border border-border bg-surface px-4 py-3 text-sm text-foreground"
-          />
+          {reportLoaded ? (
+            <div className="mt-5 border border-border bg-surface p-5">
+              <p className="font-display text-xs text-blue-accent">
+                PERSONALIZED / PROVISIONAL
+              </p>
+
+              <p className="mt-3 text-sm">
+                {recommendations.length} candidate{" "}
+                {recommendations.length === 1
+                  ? "course"
+                  : "courses"}{" "}
+                found in the demo section catalog.
+              </p>
+
+              <p className="mt-2 text-xs leading-5 text-muted">
+                Based on imported course history and
+                the {cyberOption} option. Only courses
+                with demo sections are shown.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-5 border border-border bg-surface p-5">
+              <p className="text-sm font-medium">
+                No academic report imported
+              </p>
+
+              <p className="mt-2 text-xs leading-6 text-muted">
+                Import a LionPATH report in Degree
+                Progress to see candidate courses.
+                You can still explore the demo catalog.
+              </p>
+
+              <a
+                href="/planner"
+                className="mt-3 inline-block text-xs text-blue-accent underline underline-offset-4"
+              >
+                Go to Degree Progress
+              </a>
+            </div>
+          )}
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant={!showAll ? "primary" : "secondary"}
+              onClick={() => setShowAll(false)}
+            >
+              Recommended
+            </Button>
+
+            <Button
+              size="sm"
+              variant={showAll ? "primary" : "secondary"}
+              onClick={() => setShowAll(true)}
+            >
+              All demo courses
+            </Button>
+          </div>
+
+          <div className="relative mt-5">
+            <Search
+              size={17}
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+            />
+
+            <input
+              type="search"
+              value={search}
+              onChange={(event) =>
+                setSearch(event.target.value)
+              }
+              placeholder="Search course code or title"
+              aria-label="Search courses"
+              className="w-full border border-border bg-surface py-3 pl-11 pr-4 text-sm text-foreground"
+            />
+          </div>
 
           <div className="mt-4 space-y-3">
-            {filtered.map((section) => {
-              const isSelected = selectedIds.includes(
-                section.id
-              );
+            {visibleGroups.map((group) => (
+              <CourseGroup
+                key={group.code}
+                group={group}
+                recommendation={recommendationMap.get(
+                  group.code
+                )}
+                selected={selected}
+                onAdd={addSection}
+                onRemove={removeSection}
+              />
+            ))}
 
-              const check = canAddSection(
-                selected,
-                section
-              );
+            {visibleGroups.length === 0 && (
+              <div className="border border-border bg-surface p-8">
+                <p className="text-sm font-medium">
+                  No matching courses
+                </p>
 
-              return (
-                <div
-                  key={section.id}
-                  className="border border-border bg-surface p-5"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <p className="font-display text-xs text-blue-accent">
-                        {section.courseCode} /{" "}
-                        {section.section}
-                      </p>
-
-                      <h3 className="mt-2 text-sm font-medium">
-                        {section.title}
-                      </h3>
-
-                      <p className="mt-3 text-xs leading-6 text-muted">
-                        {meetingLabel(section)}
-                      </p>
-
-                      <p className="mt-2 text-xs text-muted">
-                        {section.credits} credits ·{" "}
-                        {section.campus}
-                      </p>
-                    </div>
-
-                    <Button
-                      size="sm"
-                      variant={
-                        isSelected
-                          ? "secondary"
-                          : "primary"
-                      }
-                      onClick={() =>
-                        isSelected
-                          ? removeSection(section.id)
-                          : addSection(section)
-                      }
-                    >
-                      {isSelected ? (
-                        <>
-                          <Check size={14} />
-                          Selected
-                        </>
-                      ) : (
-                        <>
-                          <Plus size={14} />
-                          Add
-                        </>
-                      )}
-                    </Button>
-                  </div>
-
-                  {!isSelected && !check.allowed && (
-                    <p className="mt-3 text-xs text-muted">
-                      Conflicts with current selection
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-
-            {filtered.length === 0 && (
-              <p className="border border-border p-6 text-sm text-muted">
-                No matching demonstration sections.
-              </p>
+                <p className="mt-2 text-xs leading-6 text-muted">
+                  Try a different search or select
+                  All demo courses. The limited demo
+                  catalog may not contain your remaining
+                  requirements.
+                </p>
+              </div>
             )}
           </div>
         </section>
 
         <section>
-          <h2 className="font-display text-sm uppercase tracking-wider">
-            Your selected schedule
-          </h2>
+          <div className="flex items-center gap-2">
+            <CalendarDays size={18} />
+
+            <h2 className="font-display text-sm uppercase tracking-wider">
+              Selected schedule
+            </h2>
+          </div>
 
           <div className="mt-5 border border-border bg-surface">
             {selected.length === 0 ? (
@@ -289,12 +540,11 @@ export default function SchedulePage() {
                 />
 
                 <p className="mt-4 text-sm font-medium">
-                  No courses selected
+                  No sections selected
                 </p>
 
                 <p className="mt-2 text-xs text-muted">
-                  Add sections to start building your
-                  semester.
+                  Expand a course and choose a section.
                 </p>
               </div>
             ) : (
@@ -336,70 +586,65 @@ export default function SchedulePage() {
                 setSelectedIds([]);
                 setWarning(null);
               }}
-              className="mt-4 text-xs text-muted underline underline-offset-4 hover:text-foreground"
+              className="mt-4 text-xs text-muted underline underline-offset-4"
             >
               Clear schedule
             </button>
           )}
+
+          <div className="mt-6 border border-border bg-surface p-5">
+            <p className="font-display text-xs uppercase tracking-wider">
+              Weekly overview
+            </p>
+
+            <div className="mt-5 grid grid-cols-5 gap-2">
+              {DAYS.slice(0, 5).map((day) => (
+                <div key={day} className="min-w-0">
+                  <p className="border-b border-border pb-3 text-center font-display text-[10px]">
+                    {DAY_LABELS[day]}
+                  </p>
+
+                  <div className="mt-3 space-y-2">
+                    {selected
+                      .flatMap((section) =>
+                        section.meetings
+                          .filter((meeting) =>
+                            meeting.days.includes(day)
+                          )
+                          .map((meeting, index) => ({
+                            section,
+                            meeting,
+                            key: `${section.id}-${index}`,
+                          }))
+                      )
+                      .sort(
+                        (a, b) =>
+                          a.meeting.start -
+                          b.meeting.start
+                      )
+                      .map((item) => (
+                        <div
+                          key={item.key}
+                          className="min-w-0 border-l-2 border-psu-blue bg-blue-soft p-2"
+                        >
+                          <p className="break-words font-display text-[10px] font-bold">
+                            {item.section.courseCode}
+                          </p>
+
+                          <p className="mt-1 text-[10px] leading-4">
+                            {formatMinutes(
+                              item.meeting.start
+                            )}
+                          </p>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
       </div>
-
-      <section className="border border-border bg-surface p-6">
-        <h2 className="font-display text-sm uppercase tracking-wider">
-          Weekly overview
-        </h2>
-
-        <div className="mt-5 grid grid-cols-5 gap-2">
-          {DAYS.slice(0, 5).map((day) => (
-            <div key={day} className="min-w-0">
-              <p className="border-b border-border pb-3 text-center font-display text-xs">
-                {DAY_LABELS[day]}
-              </p>
-
-              <div className="mt-3 space-y-2">
-                {selected
-                  .flatMap((section) =>
-                    section.meetings
-                      .filter((meeting) =>
-                        meeting.days.includes(day)
-                      )
-                      .map((meeting, index) => ({
-                        section,
-                        meeting,
-                        key: `${section.id}-${index}`,
-                      }))
-                  )
-                  .sort(
-                    (a, b) =>
-                      a.meeting.start -
-                      b.meeting.start
-                  )
-                  .map((item) => (
-                    <div
-                      key={item.key}
-                      className="min-w-0 border-l-2 border-psu-blue bg-blue-soft p-2"
-                    >
-                      <p className="break-words font-display text-[10px] font-bold">
-                        {item.section.courseCode}
-                      </p>
-
-                      <p className="mt-1 text-[10px] leading-4">
-                        {formatMinutes(
-                          item.meeting.start
-                        )}
-                      </p>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <p className="mt-5 text-xs text-muted">
-          Compact day-by-day overview. A time-scaled
-          calendar will be added in a later session.
-        </p>
-      </section>
     </div>
   );
 }
