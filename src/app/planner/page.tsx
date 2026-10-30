@@ -7,6 +7,8 @@ import {
   RotateCcw,
 } from "lucide-react";
 
+
+import { DegreeRequirements } from "@/components/planner/degree-requirements";
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard } from "@/components/ui/metric-card";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -196,6 +198,9 @@ export default function PlannerPage() {
               </table>
             </div>
           </section>
+          
+<DegreeRequirements />
+
 
           <p className="text-xs leading-6 text-muted">
             Import results are provisional. Repeated
