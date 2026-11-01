@@ -29,7 +29,7 @@ export function ThemeToggle() {
           ? "Dark mode"
           : "Light mode"
       }
-      className="inline-flex h-9 w-9 items-center justify-center border border-border bg-surface text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
     >
       {!mounted ? (
         <span className="h-4 w-4" />

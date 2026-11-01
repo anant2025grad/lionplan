@@ -30,7 +30,7 @@ export function ThemeProvider({
   children: ReactNode;
 }) {
   const [theme, setThemeState] =
-    useState<Theme>("light");
+    useState<Theme>("dark");
 
   const [mounted, setMounted] =
     useState(false);
@@ -41,10 +41,10 @@ export function ThemeProvider({
     );
 
     const initialTheme: Theme =
-      saved === "dark" ? "dark" : "light";
+      saved === "light" ? "light" : "dark";
 
     // Initialize theme from the saved preference.
-    // The default remains light.
+    // The default is atmospheric navy.
     document.documentElement.classList.toggle(
       "dark",
       initialTheme === "dark"

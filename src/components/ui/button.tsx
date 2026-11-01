@@ -20,11 +20,11 @@ export function Button({
 }: ButtonProps) {
   const variants = {
     primary:
-      "bg-psu-blue text-white hover:bg-[#16315f]",
+      "lion-button",
     secondary:
-      "border border-border bg-surface text-foreground hover:bg-surface-muted",
+      "rounded-full border border-border bg-surface text-foreground hover:bg-surface-muted",
     ghost:
-      "bg-transparent text-foreground hover:bg-surface-muted",
+      "rounded-full bg-transparent text-foreground hover:bg-surface-muted",
   };
 
   const sizes = {
