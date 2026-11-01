@@ -6,6 +6,10 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 
 import {
+    useStudentPlan,
+} from "@/hooks/use-student-plan";
+
+import {
     BookOpen,
     CalendarDays,
     Clock3,
@@ -24,9 +28,6 @@ import {
     DEMO_SECTIONS,
 } from "@/data/scheduling/demo-sections";
 
-import {
-    recommendCourses,
-} from "@/lib/academic/recommend-courses";
 
 import {
     canAddSection,
@@ -191,17 +192,12 @@ function CourseGroup({
 }
 
 export default function SchedulePage() {
-    const courses = useAcademicStore(
-        (state) => state.courses
-    );
 
-    const reportLoaded = useAcademicStore(
-        (state) => state.reportLoaded
-    );
-
-    const cyberOption = useAcademicStore(
-        (state) => state.cyberOption
-    );
+    const {
+        courses,
+        reportLoaded,
+        recommendations,
+    } = useStudentPlan();
 
     const [selectedIds, setSelectedIds] =
         useState<string[]>([]);
@@ -226,17 +222,6 @@ export default function SchedulePage() {
         [selected]
     );
 
-    const recommendations = useMemo(
-        () =>
-            reportLoaded
-                ? recommendCourses(
-                    courses,
-                    DEMO_SECTIONS,
-                    cyberOption
-                )
-                : [],
-        [courses, reportLoaded, cyberOption]
-    );
 
     const recommendedCodes = useMemo(
         () =>

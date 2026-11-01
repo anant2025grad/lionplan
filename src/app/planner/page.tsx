@@ -9,6 +9,10 @@ import {
   RotateCcw,
 } from "lucide-react";
 
+import {
+  useStudentPlan,
+} from "@/hooks/use-student-plan";
+
 import Link from "next/link";
 
 import { useAcademicStore } from "@/stores/academic-store";
@@ -24,22 +28,12 @@ import { MetricCard } from "@/components/ui/metric-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 
-import {
-  cybersecurityBS2026,
-} from "@/data/programs/cybersecurity/bs-2026";
-
-import {
-  evaluateProgram,
-} from "@/lib/academic/evaluate-program";
-
 export default function PlannerPage() {
-  const courses = useAcademicStore(
-    (state) => state.courses
-  );
-
-  const reportLoaded = useAcademicStore(
-    (state) => state.reportLoaded
-  );
+  const {
+    courses,
+    reportLoaded,
+    evaluation,
+  } = useStudentPlan();
 
   const warnings = useAcademicStore(
     (state) => state.warnings
@@ -49,23 +43,11 @@ export default function PlannerPage() {
     (state) => state.isPreMajor
   );
 
-  const cyberOption = useAcademicStore(
-    (state) => state.cyberOption
-  );
 
   const clearReport = useAcademicStore(
     (state) => state.clearReport
   );
 
-  const evaluation = useMemo(
-    () =>
-      evaluateProgram(
-        cybersecurityBS2026,
-        courses,
-        cyberOption
-      ),
-    [courses, cyberOption]
-  );
 
   const completedCourses = courses.filter(
     (course) => course.status === "completed"
@@ -165,7 +147,11 @@ export default function PlannerPage() {
 
             <MetricCard
               label="Requirement coverage"
-              value={`${evaluation.coveragePercentage}%`}
+              value={
+                evaluation
+                  ? `${evaluation.coveragePercentage}%`
+                  : "N/A"
+              }
               description="Completed listed requirement groups; not graduation progress"
               icon={<FileCheck2 size={18} />}
             />
