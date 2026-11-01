@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 
 import "./globals.css";
+import { CircularCursor } from "@/components/ui/circular-cursor";
 
 import {
   ThemeProvider,
@@ -27,6 +28,7 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <AppShell>{children}</AppShell>
+          <CircularCursor />
         </ThemeProvider>
       </body>
     </html>

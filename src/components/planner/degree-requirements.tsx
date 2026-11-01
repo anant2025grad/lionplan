@@ -31,7 +31,7 @@ function StatusIcon({
       return (
         <CheckCircle2
           size={17}
-          className="text-blue-accent"
+          className="text-emerald-400"
         />
       );
 
@@ -39,7 +39,7 @@ function StatusIcon({
       return (
         <Clock3
           size={17}
-          className="text-blue-accent"
+          className="text-amber-400"
         />
       );
 
@@ -47,7 +47,7 @@ function StatusIcon({
       return (
         <AlertTriangle
           size={17}
-          className="text-muted"
+          className="text-amber-400"
         />
       );
 
@@ -55,7 +55,7 @@ function StatusIcon({
       return (
         <Circle
           size={17}
-          className="text-muted"
+          className="text-rose-400"
         />
       );
   }

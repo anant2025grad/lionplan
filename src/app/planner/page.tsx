@@ -7,10 +7,11 @@ import { useAcademicStore } from "@/stores/academic-store";
 import { ReportImport } from "@/components/planner/report-import";
 import { DemoStudentLoader } from "@/components/planner/demo-student-loader";
 import { GeneralEducation } from "@/components/planner/general-education";
+import { AcademicStatusBadge } from "@/components/ui/academic-status";
 import { getBeaverCourseAttributes } from "@/data/general-education/attributes";
 
 export default function PlannerPage() {
-  const { courses, reportLoaded, evaluation, recommendations, programName, warnings: programWarnings } = useStudentPlan();
+  const { courses, reportLoaded, evaluation, recommendations, programName } = useStudentPlan();
   const confirmed = useAcademicStore((s) => s.recordConfirmed);
   const confirm = useAcademicStore((s) => s.confirmReport);
   const clear = useAcademicStore((s) => s.clearReport);
@@ -26,15 +27,16 @@ export default function PlannerPage() {
     <ReportImport />
     <div className="text-center"><DemoStudentLoader /></div>
   </div>;
+  const creditOrigin = (source?: string) => source === "TE" ? "AP / test credit" : source === "TR" ? "Transfer credit" : source === "TC" ? "Transfer credit" : source === "IP" ? "In-progress enrollment" : "Penn State enrollment";
   if (!confirmed) return <div className="lion-reveal mx-auto max-w-2xl space-y-9">
     <div><p className="text-xs font-semibold uppercase tracking-widest text-blue-accent">Step 1 of 2</p>
       <h1 className="mt-3 editorial-subtitle">Check your courses</h1>
-      <p className="mt-2 text-sm text-muted">Make sure we read your report correctly before planning.</p></div>
+      <p className="mt-2 text-sm text-muted">Make sure we read your report correctly before planning. AP exams and other test credits are labeled separately from Penn State enrollments.</p></div>
     <div className="glass-panel">
       <div className="flex items-center justify-between border-b border-border px-5 py-4"><span className="text-sm font-semibold">{courses.length} courses found</span><button type="button" onClick={clear} className="text-xs text-muted underline">Start over</button></div>
       <div className="max-h-[440px] divide-y divide-border overflow-auto">{courses.map((c,i) => <div key={`${c.code}-${c.term}-${i}`} className="flex items-center justify-between gap-4 px-5 py-3 text-sm">
-        <span><strong className="font-display text-xs">{c.code}</strong><span className="ml-3 text-muted">{c.title}</span></span>
-        <span className="shrink-0 text-xs text-muted">{c.status.replace("_", " ")}</span></div>)}</div>
+        <div className="min-w-0"><div className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><strong className="text-sm font-semibold">{c.code}</strong><span className="text-sm text-muted">{c.title}</span></div><p className="mt-1 text-[11px] text-muted">{creditOrigin(c.source)} · {c.credits} credits{c.grade ? ` · ${c.grade}` : ""}</p></div>
+        <AcademicStatusBadge status={c.status} /></div>)}</div>
     </div>
     {(importWarnings.length > 0 || isPreMajor) && <details className="text-xs text-muted"><summary className="cursor-pointer">Import notes</summary><div className="mt-2 space-y-1">{isPreMajor && <p>Pre-major report: confirm your degree requirements with an adviser.</p>}{importWarnings.map((w,i)=><p key={i}>{w}</p>)}</div></details>}
     <button type="button" onClick={confirm} className="flex w-full items-center justify-center gap-2 lion-button px-6 py-3 text-sm font-semibold text-white"><Check size={16}/> These courses look right</button>
@@ -54,7 +56,7 @@ export default function PlannerPage() {
     </section>
     <section className="space-y-4"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-display text-3xl">What you still need</h2>
       <label className="flex items-center gap-2 text-xs text-muted">Option <select value={option} onChange={(e)=>setOption(e.target.value as "operations"|"analytics")} className="glass-panel px-2 py-2 text-foreground"><option value="operations">Operations</option><option value="analytics">Analytics</option></select></label></div>
-      <div className="divide-y divide-border border-y border-border">{visible.map((r) => <div key={r.requirement.id} className="lion-row flex items-center justify-between gap-4 py-4"><div><p className="text-sm font-medium">{r.requirement.label}</p><p className="mt-1 text-xs text-muted">{r.requirement.alternatives.join(" · ")}</p></div><span className="shrink-0 text-xs text-muted">{r.status === "in_progress" ? "In progress" : r.status === "completed" ? "Done" : r.status === "attention" ? "Review" : "Needed"}</span></div>)}
+      <div className="divide-y divide-border border-y border-border">{visible.map((r) => <div key={r.requirement.id} className="lion-row flex items-center justify-between gap-4 py-4"><div><p className="text-sm font-medium">{r.requirement.label}</p><p className="mt-1 text-xs text-muted">{r.requirement.alternatives.join(" · ")}</p></div><AcademicStatusBadge status={r.status === "missing" ? "missing" : r.status} /></div>)}
       {!visible.length && <p className="py-5 text-sm text-muted">No outstanding groups found in this partial catalog.</p>}</div>
       {(evaluation?.requirements.length ?? 0) > 5 && <button type="button" onClick={()=>setShowAll(!showAll)} className="flex items-center gap-1 text-xs text-muted underline underline-offset-4">{showAll ? <ChevronUp size={14}/> : <ChevronDown size={14}/>} {showAll ? "Show fewer" : "See all requirements"}</button>}
     </section>

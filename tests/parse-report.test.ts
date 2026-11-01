@@ -25,6 +25,20 @@ describe("LionPATH What-If parser", () => {
     expect(result.courses[3].status).toBe("completed");
   });
 
+  it("distinguishes AP test credit from PSU enrollment and retains earned credit", () => {
+    const report = `Course History
+      CMPSC XFRGEN Computer Science Test Credit 3.00 FA 2025 TE
+      GEOG 220 Geography Test Credit 3.00 FA 2025 TE
+      CMPSC 131 Programming and Computation I 3.00 FA 2025 A EN
+      IST 242 Object-Oriented Development 3.00 SP 2027 IP`;
+    const result = parseWhatIfReport(report);
+    expect(result.courses).toHaveLength(4);
+    expect(result.courses.slice(0, 2).map((c) => c.source)).toEqual(["TE", "TE"]);
+    expect(result.courses.slice(0, 2).map((c) => c.status)).toEqual(["completed", "completed"]);
+    expect(result.courses[2].source).toBe("EN");
+    expect(result.courses[3].status).toBe("in_progress");
+  });
+
   it("reports when course history is missing", () => {
     const result = parseWhatIfReport(
       "This is not a What-If report."

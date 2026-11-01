@@ -11,14 +11,18 @@ export interface ParseResult {
 }
 
 const COURSE_PATTERN =
-  /\b([A-Z][A-Z-]{1,5})\s+(\d{1,3}[A-Z]{0,2}|X[A-Z]{3,6})\s+(.{1,70}?)\s+(\d\.\d\d)\s+(FA|SP|SU)\s+(\d{4})\s+(?:([A-DFPW][+-]?|SA|LD|TR|NR|AU)\s+)?(EN|TE|TR|IP|TC)\b/g;
+  /\b([A-Z][A-Z-]{1,5})\s+(\d{1,3}[A-Z]{0,2}|X[A-Z]{3,6})\s+(.{1,70}?)\s+(\d\.\d\d)\s+(FA|SP|SU)\s+(\d{4})\s+(?:([A-DFPW][+-]?|SA|LD|TR|NR|AU|IP)\s+)?(EN|TE|TR|IP|TC)\b/g;
 
 function getCourseStatus(
   grade: string,
   source: string
 ): CourseStatus {
-  if (source === "IP") {
+  if (source === "IP" || grade === "IP") {
     return "in_progress";
+  }
+
+  if (source === "TE" || source === "TR" || source === "TC") {
+    return "completed";
   }
 
   if (/^(A|B|C)[+-]?$|^(SA|P|TR)$/.test(grade)) {

@@ -2,7 +2,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { AlertCircle } from "lucide-react";
+
 
 import { useAcademicStore } from "@/stores/academic-store";
 
@@ -11,6 +11,7 @@ import {
 } from "@/lib/academic/evaluate-general-education";
 
 
+import { AcademicStatusBadge } from "@/components/ui/academic-status";
 import { SectionHeader } from "@/components/ui/section-header";
 
 export function GeneralEducation() {
@@ -111,12 +112,7 @@ export function GeneralEducation() {
                         {item.code}
                       </span>
 
-                      <span className="text-muted">
-                        {item.credits} cr ·{" "}
-                        {item.status === "completed"
-                          ? "Completed"
-                          : "In progress"}
-                      </span>
+                      <span className="flex items-center gap-2"><span className="text-muted">{item.credits} cr</span><AcademicStatusBadge status={item.status} /></span>
                     </div>
                   ))}
               </div>
