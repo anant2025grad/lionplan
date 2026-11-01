@@ -48,6 +48,7 @@ export const useAcademicStore =
 
 
         setReport: (courses, isPreMajor, warnings) =>
+        
             set({
                 courses,
                 reportLoaded: true,
