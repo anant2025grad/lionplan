@@ -1,301 +1,72 @@
-
 "use client";
-
-import { useMemo } from "react";
-import {
-  BookOpen,
-  FileCheck2,
-  GraduationCap,
-  RotateCcw,
-} from "lucide-react";
-
-import {
-  useStudentPlan,
-} from "@/hooks/use-student-plan";
-
 import Link from "next/link";
-
+import { useState } from "react";
+import { ArrowRight, Check, ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
+import { useStudentPlan } from "@/hooks/use-student-plan";
 import { useAcademicStore } from "@/stores/academic-store";
-
 import { ReportImport } from "@/components/planner/report-import";
 import { DemoStudentLoader } from "@/components/planner/demo-student-loader";
-import { ProgramSelector } from "@/components/planner/program-selector";
-import { DegreeRequirements } from "@/components/planner/degree-requirements";
 import { GeneralEducation } from "@/components/planner/general-education";
 
-import { PageHeader } from "@/components/ui/page-header";
-import { MetricCard } from "@/components/ui/metric-card";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Button } from "@/components/ui/button";
-
 export default function PlannerPage() {
-  const {
-    courses,
-    reportLoaded,
-    evaluation,
-  } = useStudentPlan();
-
-  const warnings = useAcademicStore(
-    (state) => state.warnings
-  );
-
-  const isPreMajor = useAcademicStore(
-    (state) => state.isPreMajor
-  );
-
-
-  const clearReport = useAcademicStore(
-    (state) => state.clearReport
-  );
-
-
-  const completedCourses = courses.filter(
-    (course) => course.status === "completed"
-  ).length;
-
-  const inProgressCourses = courses.filter(
-    (course) => course.status === "in_progress"
-  ).length;
-
-  const completedCredits = courses
-    .filter(
-      (course) => course.status === "completed"
-    )
-    .reduce(
-      (total, course) => total + course.credits,
-      0
-    );
-
-  return (
-    <div className="space-y-8">
-      <PageHeader
-        eyebrow="Academic planning"
-        title="Degree Planner"
-        description="Import your academic history, review possible degree requirement gaps, and prepare for your next semester."
-      />
-
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <DemoStudentLoader />
-
-        {reportLoaded && (
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={clearReport}
-          >
-            <RotateCcw size={14} />
-            Clear academic record
-          </Button>
-        )}
-      </div>
-
-      <ReportImport />
-
-      {!reportLoaded ? (
-        <section className="border border-border bg-surface p-8">
-          <div className="flex max-w-xl flex-col items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center border border-border bg-surface-muted">
-              <GraduationCap
-                size={22}
-                className="text-blue-accent"
-              />
-            </div>
-
-            <div>
-              <h2 className="font-display text-base uppercase tracking-wider">
-                Start with your academic history
-              </h2>
-
-              <p className="mt-3 text-sm leading-6 text-muted">
-                Import a LionPATH What-If report or
-                load our fictional demo student to
-                explore the planning workflow.
-              </p>
-            </div>
-
-            <p className="text-xs leading-5 text-muted">
-              Academic reports are processed in your
-              browser. LionPlan is an independent
-              planning prototype and does not replace
-              official Penn State advising.
-            </p>
-          </div>
-        </section>
-      ) : (
-        <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCard
-              label="Courses completed"
-              value={completedCourses}
-              description="Courses marked completed in the imported record"
-              icon={<FileCheck2 size={18} />}
-            />
-
-            <MetricCard
-              label="In progress"
-              value={inProgressCourses}
-              description="Currently enrolled or pending completion"
-              icon={<BookOpen size={18} />}
-            />
-
-            <MetricCard
-              label="Completed credits"
-              value={completedCredits}
-              description="Sum of completed course credits in the record"
-              icon={<GraduationCap size={18} />}
-            />
-
-            <MetricCard
-              label="Requirement coverage"
-              value={
-                evaluation
-                  ? `${evaluation.coveragePercentage}%`
-                  : "N/A"
-              }
-              description="Completed listed requirement groups; not graduation progress"
-              icon={<FileCheck2 size={18} />}
-            />
-          </div>
-
-          <ProgramSelector />
-
-          {isPreMajor && (
-            <div className="border border-border bg-surface-muted p-4">
-              <p className="text-sm font-semibold">
-                Pre-major record detected
-              </p>
-
-              <p className="mt-2 text-xs leading-5 text-muted">
-                Some program-specific requirements
-                may not appear in the imported report.
-                Confirm your intended major and
-                Bulletin year with an adviser.
-              </p>
-            </div>
-          )}
-
-          {warnings.length > 0 && (
-            <section className="border border-border bg-surface p-5">
-              <h2 className="font-display text-xs uppercase tracking-wider">
-                Import and data notices
-              </h2>
-
-              <div className="mt-4 space-y-2">
-                {warnings.map((warning, index) => (
-                  <p
-                    key={`${index}-${warning}`}
-                    className="text-xs leading-5 text-muted"
-                  >
-                    {warning}
-                  </p>
-                ))}
-              </div>
-            </section>
-          )}
-
-          <DegreeRequirements />
-
-          <GeneralEducation />
-
-          <section className="border border-border bg-surface">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
-              <div>
-                <h2 className="font-display text-xs uppercase tracking-wider">
-                  Academic course history
-                </h2>
-
-                <p className="mt-2 text-xs text-muted">
-                  {courses.length} parsed course records
-                </p>
-              </div>
-
-              <Link
-                href="/schedule"
-                className="inline-flex items-center gap-2 bg-psu-blue px-4 py-2 text-xs font-semibold text-white"
-              >
-                Build my schedule
-              </Link>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[680px] text-left text-sm">
-                <thead className="border-b border-border bg-surface-muted">
-                  <tr>
-                    <th className="px-5 py-3 text-xs font-medium">
-                      Course
-                    </th>
-                    <th className="px-5 py-3 text-xs font-medium">
-                      Title
-                    </th>
-                    <th className="px-5 py-3 text-xs font-medium">
-                      Credits
-                    </th>
-                    <th className="px-5 py-3 text-xs font-medium">
-                      Term
-                    </th>
-                    <th className="px-5 py-3 text-xs font-medium">
-                      Grade
-                    </th>
-                    <th className="px-5 py-3 text-xs font-medium">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {courses.map((course, index) => (
-                    <tr
-                      key={`${course.code}-${course.term}-${index}`}
-                      className="border-b border-border last:border-b-0"
-                    >
-                      <td className="px-5 py-4 font-display text-xs font-bold">
-                        {course.code}
-                      </td>
-
-                      <td className="px-5 py-4 text-xs">
-                        {course.title}
-                      </td>
-
-                      <td className="px-5 py-4 text-xs">
-                        {course.credits}
-                      </td>
-
-                      <td className="px-5 py-4 text-xs">
-                        {course.term}
-                      </td>
-
-                      <td className="px-5 py-4 text-xs">
-                        {course.grade ?? "—"}
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <StatusBadge
-                          status={
-                            course.status === "completed"
-                              ? "completed"
-                              : course.status === "in_progress"
-                                ? "in_progress"
-                                : "attention"
-                          }
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <p className="text-xs leading-5 text-muted">
-            Requirement coverage is calculated from
-            provisional program rules. General
-            Education allocation, minimum grades,
-            substitutions, transfer equivalencies
-            and graduation eligibility require
-            official verification.
-          </p>
-        </>
-      )}
+  const { courses, reportLoaded, evaluation, recommendations, programName, warnings: programWarnings } = useStudentPlan();
+  const confirmed = useAcademicStore((s) => s.recordConfirmed);
+  const confirm = useAcademicStore((s) => s.confirmReport);
+  const clear = useAcademicStore((s) => s.clearReport);
+  const importWarnings = useAcademicStore((s) => s.warnings);
+  const isPreMajor = useAcademicStore((s) => s.isPreMajor);
+  const option = useAcademicStore((s) => s.cyberOption);
+  const setOption = useAcademicStore((s) => s.setCyberOption);
+  const [details, setDetails] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  if (!reportLoaded) return <div className="mx-auto max-w-2xl space-y-6 pt-8 sm:pt-16">
+    <div className="text-center"><h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">A clearer path to graduation.</h1>
+      <p className="mt-3 text-sm text-muted">Your degree. Your next courses. Your schedule.</p></div>
+    <ReportImport />
+    <div className="text-center"><DemoStudentLoader /></div>
+  </div>;
+  if (!confirmed) return <div className="mx-auto max-w-2xl space-y-6">
+    <div><p className="text-xs font-semibold uppercase tracking-widest text-blue-accent">Step 1 of 2</p>
+      <h1 className="mt-3 text-3xl font-semibold">Check your courses</h1>
+      <p className="mt-2 text-sm text-muted">Make sure we read your report correctly before planning.</p></div>
+    <div className="border border-border bg-surface">
+      <div className="flex items-center justify-between border-b border-border px-5 py-4"><span className="text-sm font-semibold">{courses.length} courses found</span><button type="button" onClick={clear} className="text-xs text-muted underline">Start over</button></div>
+      <div className="max-h-[440px] divide-y divide-border overflow-auto">{courses.map((c,i) => <div key={`${c.code}-${c.term}-${i}`} className="flex items-center justify-between gap-4 px-5 py-3 text-sm">
+        <span><strong className="font-display text-xs">{c.code}</strong><span className="ml-3 text-muted">{c.title}</span></span>
+        <span className="shrink-0 text-xs text-muted">{c.status.replace("_", " ")}</span></div>)}</div>
     </div>
-  );
+    {(importWarnings.length > 0 || isPreMajor) && <details className="text-xs text-muted"><summary className="cursor-pointer">Import notes</summary><div className="mt-2 space-y-1">{isPreMajor && <p>Pre-major report: confirm your degree requirements with an adviser.</p>}{importWarnings.map((w,i)=><p key={i}>{w}</p>)}</div></details>}
+    <button type="button" onClick={confirm} className="flex w-full items-center justify-center gap-2 bg-psu-blue px-5 py-3 text-sm font-semibold text-white"><Check size={16}/> These courses look right</button>
+    <p className="text-center text-xs text-muted">If anything is missing, replace the report and try again.</p>
+  </div>;
+  const outstanding = evaluation?.requirements.filter((r) => r.status !== "completed") ?? [];
+  const visible = showAll ? (evaluation?.requirements ?? []) : outstanding.slice(0, 5);
+  const distinct = Array.from(new Map(recommendations.map((r) => [r.courseCode,r])).values());
+  return <div className="mx-auto max-w-3xl space-y-9">
+    <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-widest text-blue-accent">Your plan</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">{programName ?? "Your degree"}</h1><p className="mt-2 text-sm text-muted">Penn State Beaver · Provisional 2026–27 requirements</p></div>
+      <button type="button" onClick={clear} className="flex shrink-0 items-center gap-1 text-xs text-muted hover:text-foreground"><RotateCcw size={13}/> Replace PDF</button></div>
+    <section className="space-y-4 border border-border bg-surface p-6">
+      <div className="flex items-end justify-between gap-4"><div><p className="text-sm text-muted">Requirements completed</p><p className="mt-2 text-3xl font-semibold">{evaluation?.completed ?? 0} <span className="text-base font-normal text-muted">of {evaluation?.total ?? 0}</span></p></div>
+      <span className="text-sm font-semibold">{evaluation?.coveragePercentage ?? 0}%</span></div>
+      <div className="h-1.5 bg-surface-muted"><div className="h-full bg-psu-blue" style={{width:`${evaluation?.coveragePercentage ?? 0}%`}}/></div>
+      <p className="text-xs text-muted">Tracked requirement groups only — not graduation progress.</p>
+    </section>
+    <section className="space-y-4"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">What you still need</h2>
+      <label className="flex items-center gap-2 text-xs text-muted">Option <select value={option} onChange={(e)=>setOption(e.target.value as "operations"|"analytics")} className="border border-border bg-surface px-2 py-2 text-foreground"><option value="operations">Operations</option><option value="analytics">Analytics</option></select></label></div>
+      <div className="divide-y divide-border border-y border-border">{visible.map((r) => <div key={r.requirement.id} className="flex items-center justify-between gap-4 py-4"><div><p className="text-sm font-medium">{r.requirement.label}</p><p className="mt-1 text-xs text-muted">{r.requirement.alternatives.join(" · ")}</p></div><span className="shrink-0 text-xs text-muted">{r.status === "in_progress" ? "In progress" : r.status === "completed" ? "Done" : r.status === "attention" ? "Review" : "Needed"}</span></div>)}
+      {!visible.length && <p className="py-5 text-sm text-muted">No outstanding groups found in this partial catalog.</p>}</div>
+      {(evaluation?.requirements.length ?? 0) > 5 && <button type="button" onClick={()=>setShowAll(!showAll)} className="flex items-center gap-1 text-xs text-muted underline underline-offset-4">{showAll ? <ChevronUp size={14}/> : <ChevronDown size={14}/>} {showAll ? "Show fewer" : "See all requirements"}</button>}
+    </section>
+    <section className="space-y-4"><h2 className="text-lg font-semibold">Courses to consider next</h2>
+      <div className="divide-y divide-border border-y border-border">{distinct.slice(0,4).map((r)=><div key={r.courseCode} className="flex items-center justify-between gap-4 py-4"><div><p className="font-display text-sm font-semibold">{r.courseCode}</p><p className="mt-1 text-xs text-muted">{r.title} · {r.credits} credits</p></div><span className="text-xs text-muted">{r.priority === "review" ? "Review" : "Suggested"}</span></div>)}
+      {!distinct.length && <p className="py-5 text-sm text-muted">No matching demo sections for outstanding requirements.</p>}</div>
+      <Link href="/schedule" className="flex w-full items-center justify-center gap-2 bg-psu-blue px-5 py-3 text-sm font-semibold text-white">Build my schedule <ArrowRight size={16}/></Link>
+    </section>
+    <details open={details} onToggle={(e)=>setDetails(e.currentTarget.open)} className="border-t border-border pt-5"><summary className="cursor-pointer text-sm text-muted">Academic details & notices</summary>
+      <div className="mt-5 space-y-5"><p className="text-xs leading-5 text-muted">This is a partial, unverified catalog. It does not determine graduation eligibility, transfer applicability, prerequisites, or course availability. Verify decisions with your adviser and LionPATH.</p>
+      {isPreMajor && <p className="text-xs text-muted">Pre-major report detected; some requirements may be absent.</p>}
+      {[...importWarnings,...programWarnings].map((w,i)=><p key={i} className="text-xs text-muted">{w}</p>)}
+      <GeneralEducation /></div>
+    </details>
+  </div>;
 }
