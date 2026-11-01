@@ -144,7 +144,7 @@ export function evaluateGeneralEducation(
     const eligible = unique.filter(eligibleCourse);
 
     const unknownCourses = eligible
-        .filter((course) => !attributes[course.code])
+        .filter((course) => !Object.prototype.hasOwnProperty.call(attributes, course.code))
         .map((course) => course.code);
 
     const cultures: GeneralEducationResult["cultures"] = {

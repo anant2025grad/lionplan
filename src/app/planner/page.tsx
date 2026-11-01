@@ -7,6 +7,7 @@ import { useAcademicStore } from "@/stores/academic-store";
 import { ReportImport } from "@/components/planner/report-import";
 import { DemoStudentLoader } from "@/components/planner/demo-student-loader";
 import { GeneralEducation } from "@/components/planner/general-education";
+import { getBeaverCourseAttributes } from "@/data/general-education/attributes";
 
 export default function PlannerPage() {
   const { courses, reportLoaded, evaluation, recommendations, programName, warnings: programWarnings } = useStudentPlan();
@@ -57,8 +58,8 @@ export default function PlannerPage() {
       {!visible.length && <p className="py-5 text-sm text-muted">No outstanding groups found in this partial catalog.</p>}</div>
       {(evaluation?.requirements.length ?? 0) > 5 && <button type="button" onClick={()=>setShowAll(!showAll)} className="flex items-center gap-1 text-xs text-muted underline underline-offset-4">{showAll ? <ChevronUp size={14}/> : <ChevronDown size={14}/>} {showAll ? "Show fewer" : "See all requirements"}</button>}
     </section>
-    <section className="space-y-4"><h2 className="font-display text-3xl">Courses to consider next</h2><p className="text-sm leading-relaxed text-muted">Courses offered in the supplied Spring 2027 Beaver listing that match unmet requirements. Not an enrollment or prerequisite guarantee.</p>
-      <div className="divide-y divide-border border-y border-border">{distinct.slice(0,8).map((r)=><div key={r.courseCode} className="lion-row flex items-center justify-between gap-4 py-4"><div><p className="text-base font-semibold tracking-normal">{r.courseCode}</p><p className="mt-1 text-sm leading-relaxed text-muted">{r.title} · ~{r.credits} credits</p></div><span className="text-xs text-muted">{r.priority === "review" ? "Review" : "Suggested"}</span></div>)}
+    <section className="space-y-4"><h2 className="font-display text-3xl">Courses to consider next</h2><p className="text-sm leading-relaxed text-muted">Courses offered in the supplied Spring 2027 Beaver listing that match unmet program requirements. Attribute tags come from the 2026–27 Penn State Bulletin. Recommendations remain provisional; Gen Ed attributes alone do not establish eligibility.</p>
+      <div className="divide-y divide-border border-y border-border">{distinct.slice(0,8).map((r)=><div key={r.courseCode} className="lion-row flex items-center justify-between gap-4 py-4"><div><p className="text-base font-semibold tracking-normal">{r.courseCode}</p><p className="mt-1 text-sm leading-relaxed text-muted">{r.title} · ~{r.credits} credits</p><div className="mt-2 flex flex-wrap gap-1.5">{(getBeaverCourseAttributes(r.courseCode) ?? []).map((tag) => <span key={tag} className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted" title="2026–27 Penn State Bulletin designation">{tag}</span>)}</div></div><span className="text-xs text-muted">{r.priority === "review" ? "Review" : "Suggested"}</span></div>)}
       {!distinct.length && <p className="py-5 text-sm text-muted">No Spring 2027 Beaver sections match the currently tracked outstanding requirements.</p>}</div>
       <Link href="/schedule" className="flex w-full items-center justify-center gap-2 lion-button px-6 py-3 text-sm font-semibold text-white">Build my schedule <ArrowRight size={16}/></Link>
     </section>
@@ -66,7 +67,7 @@ export default function PlannerPage() {
       <div className="mt-5 space-y-5"><p className="text-xs leading-5 text-muted">This is a partial, unverified catalog. It does not determine graduation eligibility, transfer applicability, prerequisites, or course availability. Verify decisions with your adviser and LionPATH.</p>
       {isPreMajor && <p className="text-xs text-muted">Pre-major report detected; some requirements may be absent.</p>}
       {importWarnings.map((w,i)=><p key={i} className="text-xs leading-6 text-muted">{w}</p>)}
-      <div className="space-y-2 text-sm leading-7 text-muted"><p className="font-medium text-foreground">What LionPlan cannot verify yet</p><p>Some degree rules still need an adviser’s review: application focus and supporting courses, List A/B electives, first-year seminar, General Education and cultures designations, minimum grades and prerequisites, transfer substitutions, and which Bulletin year applies to you. These can change which classes count toward your degree.</p><p>The app uses a partial program catalog. Treat suggested courses as starting points, not confirmed degree requirements.</p></div>
+      <div className="space-y-2 text-sm leading-7 text-muted"><p className="font-medium text-foreground">What LionPlan cannot verify yet</p><p>Some degree rules still need an adviser’s review: application focus and supporting courses, List A/B electives, first-year seminar, how General Education and cultures credits apply to your degree, minimum grades and prerequisites, transfer substitutions, and which Bulletin year applies to you. These can change which classes count toward your degree.</p><p>The app uses a partial program catalog. Treat suggested courses as starting points, not confirmed degree requirements.</p></div>
       <GeneralEducation /></div>
     </details>
   </div>;
