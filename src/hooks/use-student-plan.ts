@@ -8,8 +8,8 @@ import {
 } from "@/stores/academic-store";
 
 import {
-  DEMO_SECTIONS,
-} from "@/data/scheduling/demo-sections";
+  SPRING_2027_SECTIONS,
+} from "@/data/scheduling/spring-2027-sections";
 
 import {
   buildStudentPlan,
@@ -38,7 +38,7 @@ export function useStudentPlan() {
         programId: selectedProgramId,
         optionId: cyberOption,
         courses,
-        sections: DEMO_SECTIONS,
+        sections: SPRING_2027_SECTIONS,
       }),
     [selectedProgramId, cyberOption, courses]
   );

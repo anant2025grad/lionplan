@@ -57,15 +57,16 @@ export default function PlannerPage() {
       {!visible.length && <p className="py-5 text-sm text-muted">No outstanding groups found in this partial catalog.</p>}</div>
       {(evaluation?.requirements.length ?? 0) > 5 && <button type="button" onClick={()=>setShowAll(!showAll)} className="flex items-center gap-1 text-xs text-muted underline underline-offset-4">{showAll ? <ChevronUp size={14}/> : <ChevronDown size={14}/>} {showAll ? "Show fewer" : "See all requirements"}</button>}
     </section>
-    <section className="space-y-4"><h2 className="font-display text-3xl">Courses to consider next</h2>
-      <div className="divide-y divide-border border-y border-border">{distinct.slice(0,4).map((r)=><div key={r.courseCode} className="lion-row flex items-center justify-between gap-4 py-4"><div><p className="font-display text-sm font-semibold">{r.courseCode}</p><p className="mt-1 text-xs text-muted">{r.title} · {r.credits} credits</p></div><span className="text-xs text-muted">{r.priority === "review" ? "Review" : "Suggested"}</span></div>)}
-      {!distinct.length && <p className="py-5 text-sm text-muted">No matching demo sections for outstanding requirements.</p>}</div>
+    <section className="space-y-4"><h2 className="font-display text-3xl">Courses to consider next</h2><p className="text-sm leading-relaxed text-muted">Courses offered in the supplied Spring 2027 Beaver listing that match unmet requirements. Not an enrollment or prerequisite guarantee.</p>
+      <div className="divide-y divide-border border-y border-border">{distinct.slice(0,8).map((r)=><div key={r.courseCode} className="lion-row flex items-center justify-between gap-4 py-4"><div><p className="text-base font-semibold tracking-normal">{r.courseCode}</p><p className="mt-1 text-sm leading-relaxed text-muted">{r.title} · ~{r.credits} credits</p></div><span className="text-xs text-muted">{r.priority === "review" ? "Review" : "Suggested"}</span></div>)}
+      {!distinct.length && <p className="py-5 text-sm text-muted">No Spring 2027 Beaver sections match the currently tracked outstanding requirements.</p>}</div>
       <Link href="/schedule" className="flex w-full items-center justify-center gap-2 lion-button px-6 py-3 text-sm font-semibold text-white">Build my schedule <ArrowRight size={16}/></Link>
     </section>
     <details open={details} onToggle={(e)=>setDetails(e.currentTarget.open)} className="border-t border-border pt-5"><summary className="cursor-pointer text-sm text-muted">Academic details & notices</summary>
       <div className="mt-5 space-y-5"><p className="text-xs leading-5 text-muted">This is a partial, unverified catalog. It does not determine graduation eligibility, transfer applicability, prerequisites, or course availability. Verify decisions with your adviser and LionPATH.</p>
       {isPreMajor && <p className="text-xs text-muted">Pre-major report detected; some requirements may be absent.</p>}
-      {[...importWarnings,...programWarnings].map((w,i)=><p key={i} className="text-xs text-muted">{w}</p>)}
+      {importWarnings.map((w,i)=><p key={i} className="text-xs leading-6 text-muted">{w}</p>)}
+      <div className="space-y-2 text-sm leading-7 text-muted"><p className="font-medium text-foreground">What LionPlan cannot verify yet</p><p>Some degree rules still need an adviser’s review: application focus and supporting courses, List A/B electives, first-year seminar, General Education and cultures designations, minimum grades and prerequisites, transfer substitutions, and which Bulletin year applies to you. These can change which classes count toward your degree.</p><p>The app uses a partial program catalog. Treat suggested courses as starting points, not confirmed degree requirements.</p></div>
       <GeneralEducation /></div>
     </details>
   </div>;

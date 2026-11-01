@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, ChevronDown, ChevronUp, RefreshCw, Trash2 } from "lucide-react";
 import { useStudentPlan } from "@/hooks/use-student-plan";
 import { useAcademicStore } from "@/stores/academic-store";
-import { DEMO_SECTIONS } from "@/data/scheduling/demo-sections";
+import { SPRING_2027_SECTIONS } from "@/data/scheduling/spring-2027-sections";
 import { DEFAULT_SCHEDULING_PREFERENCES, type SchedulingPreferences } from "@/types/scheduling-preferences";
 import type { CourseSection, MeetingDay } from "@/types/schedule";
 import { generatePreferredSchedules, type PreferredScheduleResult } from "@/lib/scheduling/generate-preferred-schedules";
@@ -22,7 +22,7 @@ export default function SchedulePage() {
   const [message,setMessage] = useState("");
   const recommendedSectionIds = useMemo(()=>Array.from(new Set(recommendations.flatMap((r)=>r.sections.map((s)=>s.id)))),[recommendations]);
   function update(patch:Partial<SchedulingPreferences>){setPreferences((p)=>({...p,...patch}));setResult(null);setSelected(null);setMessage("");}
-  function generate(){const next=generatePreferredSchedules(DEMO_SECTIONS,preferences,{recommendedSectionIds,history:courses});setResult(next);setChoice(0);setSelected(next.schedules[0]?.sections ?? null);setMessage("");}
+  function generate(){const next=generatePreferredSchedules(SPRING_2027_SECTIONS,preferences,{recommendedSectionIds,history:courses});setResult(next);setChoice(0);setSelected(next.schedules[0]?.sections ?? null);setMessage("");}
   function choose(index:number){setChoice(index);setSelected(result?.schedules[index]?.sections ?? null);setMessage("");}
   function toggleSection(section:CourseSection){
     const current=selected??[];
@@ -46,14 +46,14 @@ export default function SchedulePage() {
     {result && <section className="space-y-5" aria-live="polite">
       {result.errors.length>0 && <div role="alert" className="border border-border bg-surface p-4 text-sm">{result.errors.join(" ")}</div>}
       {result.schedules.length===0 ? <p className="text-sm text-muted">No matching schedule found. Try allowing more days or an earlier start time.</p> : <>
-        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Your timetable</h2><p className="mt-1 text-xs text-muted">{selected?.reduce((n,s)=>n+s.credits,0)??0} credits · {selected?.length??0} classes · Demo sections</p></div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Your timetable</h2><p className="mt-1 text-xs text-muted">{selected?.reduce((n,s)=>n+s.credits,0)??0} credits · {selected?.length??0} classes · Spring 2027 snapshot</p></div>
           {result.schedules.length>1 && <div className="flex gap-2">{result.schedules.map((s,i)=><button type="button" key={s.id} onClick={()=>choose(i)} aria-pressed={choice===i} className={`border px-3 py-2 text-xs ${choice===i?"border-psu-blue bg-psu-blue text-white":"border-border"}`}>Option {i+1}</button>)}</div>}</div>
         <WeeklyCalendar sections={selected??[]} />
         <button type="button" onClick={()=>setAdvanced(!advanced)} className="flex items-center gap-2 text-xs text-muted underline underline-offset-4">{advanced?<ChevronUp size={14}/>:<ChevronDown size={14}/>} Adjust classes</button>
-        {advanced && <div className="space-y-3 border border-border bg-surface p-4"><p className="text-xs text-muted">Choose one section per course. Conflicting sections are blocked.</p><div className="grid gap-2 sm:grid-cols-2">{DEMO_SECTIONS.map((s)=>{const checked=(selected??[]).some((x)=>x.id===s.id);return <button type="button" key={s.id} onClick={()=>toggleSection(s)} aria-pressed={checked} className={`flex items-center justify-between gap-3 border p-3 text-left text-xs ${checked?"border-psu-blue bg-blue-soft":"border-border"}`}><span><strong>{s.courseCode}</strong> · {s.section}</span>{checked?<Trash2 size={13}/>:<span>+</span>}</button>})}</div>{message && <p role="alert" className="text-xs text-red-600">{message}</p>}</div>}
+        {advanced && <div className="space-y-3 border border-border bg-surface p-4"><p className="text-xs text-muted">Choose one section per course. Conflicting sections are blocked.</p><div className="grid gap-2 sm:grid-cols-2">{SPRING_2027_SECTIONS.map((s)=>{const checked=(selected??[]).some((x)=>x.id===s.id);return <button type="button" key={s.id} onClick={()=>toggleSection(s)} aria-pressed={checked} className={`flex items-center justify-between gap-3 border p-3 text-left text-xs ${checked?"border-psu-blue bg-blue-soft":"border-border"}`}><span><strong>{s.courseCode}</strong> · {s.section}</span>{checked?<Trash2 size={13}/>:<span>+</span>}</button>})}</div>{message && <p role="alert" className="text-xs text-red-600">{message}</p>}</div>}
       </>}
       {result.warnings.length>0 && <details className="text-xs text-muted"><summary className="cursor-pointer">Scheduling notes ({result.warnings.length})</summary><div className="mt-2 space-y-2">{result.warnings.map((w,i)=><p key={i}>{w}</p>)}</div></details>}
     </section>}
-    <p className="text-xs leading-5 text-muted">Course sections are fictional examples. Real availability and prerequisites must be checked in LionPATH before registration.</p>
+    <p className="text-xs leading-5 text-muted">Spring 2027 Beaver course listing supplied by the user; not live availability. Credits are estimates because the listing omitted credit hours. Verify seats, credits, linked sections and prerequisites in LionPATH.</p>
   </div>;
 }

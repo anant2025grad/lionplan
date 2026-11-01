@@ -10,9 +10,6 @@ import {
   evaluateGeneralEducation,
 } from "@/lib/academic/evaluate-general-education";
 
-import {
-  GEN_ED_REVIEW_ITEMS,
-} from "@/data/general-education/requirements";
 
 import { SectionHeader } from "@/components/ui/section-header";
 
@@ -171,47 +168,13 @@ export function GeneralEducation() {
       </div>
 
       {result.unknownCourses.length > 0 && (
-        <div className="border-l-2 border-psu-blue bg-blue-soft p-5">
-          <div className="flex items-center gap-2">
-            <AlertCircle size={16} />
-            <p className="text-sm font-medium">
-              Attribute information unavailable
-            </p>
-          </div>
-
-          <p className="mt-3 text-xs leading-6 text-muted">
-            We do not yet have attribute data for
-            these courses. Some may be major-only
-            courses; others may qualify for General
-            Education.
-          </p>
-
-          <p className="mt-3 font-display text-xs leading-6">
-            {result.unknownCourses.join(", ")}
-          </p>
-        </div>
+        <details className="rounded-2xl bg-surface-muted p-5 text-sm">
+          <summary className="cursor-pointer text-muted">Attributes not yet verified for {result.unknownCourses.length} imported courses</summary>
+          <p className="mt-3 text-sm leading-7 text-muted">Your PDF contains course codes and grades, but does not provide a reliable course-attribute catalog. LionPlan currently knows attributes for only a small starter set. Unlisted courses are not necessarily ineligible for General Education.</p>
+          <p className="mt-3 break-words text-sm leading-7 text-muted">{result.unknownCourses.join(" · ")}</p>
+        </details>
       )}
 
-      <div className="border border-border bg-surface p-6">
-        <p className="font-display text-xs uppercase tracking-wider">
-          Additional rules not evaluated
-        </p>
-
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          {GEN_ED_REVIEW_ITEMS.map((item) => (
-            <div
-              key={item}
-              className="flex items-start gap-2 text-xs leading-6 text-muted"
-            >
-              <AlertCircle
-                size={14}
-                className="mt-1 shrink-0 text-blue-accent"
-              />
-              {item}
-            </div>
-          ))}
-        </div>
-      </div>
     </section>
   );
 }
